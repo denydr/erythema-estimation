@@ -1,0 +1,11 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+pyvenv.cfg
+cachedir.tag
+.idea/
+.env
+data/processed/manifest.csv
+data/processed/ei_maps/
+TODO.py

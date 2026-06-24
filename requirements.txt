@@ -1,0 +1,8 @@
+numpy
+scipy
+h5py
+pandas
+Pillow
+matplotlib
+python-dotenv
+jupyter>=1.0
