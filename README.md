@@ -98,9 +98,13 @@ where p, q, r, s, t = log₁₀(1 / R) at 510, 540, 560, 580, 610 nm respectivel
 flowchart TD
     SSD["📁 Hyper-Skin(RGB, VIS)\ntrain · test · valid\nRGB/*.jpg · VIS/*.mat"]
 
-    subgraph cfg["config.py + .env"]
+    ENV[".env\nDATA_ROOT=..."]
+
+    subgraph cfg["config.py"]
         C["DATA_ROOT · CUBE_SHAPE\nWavelengths · SPLIT_OVERRIDE\nREFLECTANCE_FLOOR"]
     end
+
+    ENV --> cfg
 
     subgraph src["src/"]
         MAN["manifest.py\nparse_filename()\nbuild_manifest()\nsave / load_manifest()"]
@@ -120,15 +124,16 @@ flowchart TD
 
     SSD --> MAN
     SSD --> IO
-    cfg --> MAN
     cfg --> IO
     cfg --> EI
     cfg --> BS
     cfg --> CE
+    cfg --> NB
 
     MAN --> BS
     BS --> MCSV
 
+    MAN --> CE
     MCSV --> CE
     IO --> EI
     EI --> CE
