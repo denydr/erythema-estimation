@@ -11,10 +11,30 @@ hyperspectral VIS cubes.
 
 ---
 
+### Dataset
+
+The **Hyper-Skin 2023** dataset is the data source used in this project. The RGB-VIS pairs are utilized, spanning 51 subjects across 306 paired hyperspectral cubes and RGB images.
+
+- Splits: train = 44 subjects / 264 images, test = 4 subjects / 24 images, valid = 3 subjects / 18 images.
+- **Split override:** subjects p027, p019, p012 are assigned to `test` regardless of their folder, managed via `manifest.csv` (files are not moved).
+- Raw cubes: ~124 MB each, ~38 GB total.
+
+```bibtex
+@inproceedings{ng2023hyperskin,
+  title={Hyper-Skin: A Hyperspectral Dataset for Reconstructing Facial Skin-Spectra from {RGB} Images},
+  author={Pai Chet Ng and Zhixiang Chi and Yannick Verdie and Juwei Lu and Konstantinos N Plataniotis},
+  booktitle={Thirty-seventh Conference on Neural Information Processing Systems Datasets and Benchmarks Track},
+  year={2023},
+  url={https://openreview.net/forum?id=doV2nhGm1l}
+}
+```
+
+---
+
 ### Data access and EULA
 
-The Hyper-Skin dataset (RGB images, hyperspectral cubes, and all derived data
-including erythema index maps) is subject to a dataset EULA and **cannot be
+The Hyper-Skin dataset (RGB images & hyperspectral cubes) and all derived data
+(including erythema index maps) is subject to a dataset EULA and **cannot be
 included in or distributed from this repository**. Only 3 of 51 subjects
 consented to publication use; the EULA restricts storage to signatories only.
 
@@ -40,17 +60,6 @@ Hyper-Skin(RGB, VIS)/       ← used by this project
         RGB/    *.jpg
         VIS/    *.mat
 ```
-
----
-
-### Dataset facts
-
-- 51 subjects, 306 paired RGB (`.jpg`) + hyperspectral VIS cube (`.mat`) samples.
-- Splits: train = 44 subjects / 264 images, test = 4 subjects / 24 images,
-  valid = 3 subjects / 18 images.
-- **Split override:** subjects p027, p019, p012 are assigned to `test` regardless
-  of their folder, managed via `manifest.csv` (files are not moved).
-- Raw cubes: ~124 MB each, ~38 GB total.
 
 ---
 
