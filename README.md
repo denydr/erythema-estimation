@@ -33,10 +33,9 @@ The **Hyper-Skin 2023** dataset is the data source used in this project. The RGB
 
 ### Data access and EULA
 
-The Hyper-Skin dataset (RGB images & hyperspectral cubes) and all derived data
-(including erythema index maps) is subject to a dataset EULA and **cannot be
-included in or distributed from this repository**. Only 3 of 51 subjects
-consented to publication use; the EULA restricts storage to signatories only.
+The Hyper-Skin dataset and all derived data (including erythema index maps) is subject to a dataset EULA (End User 
+License Agreement) and **cannot be included in or distributed from this repository**. 
+Only 3 of 51 subjects consented to publication use; the EULA restricts storage to signatories only.
 
 **This repository ships code only — no data of any kind.**
 
@@ -44,7 +43,7 @@ Anyone running this pipeline must independently request access:
 
 > **Access request form:** https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess
 
-After approval you will receive a download link by email. The download is an
+After approval you will receive a download link and access password by email. The download is an
 archive (`Hyper-Skin.7z`). Once extracted it contains:
 
 ```
