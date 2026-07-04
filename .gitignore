@@ -8,4 +8,5 @@ cachedir.tag
 .env
 data/processed/manifest.csv
 data/processed/ei_maps/
+notebooks/.ipynb_checkpoints/
 TODO.py

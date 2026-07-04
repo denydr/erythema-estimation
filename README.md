@@ -98,6 +98,8 @@ DEI = 100 × [r + (3/2)(q + s) − 2(p + t)]
 
 where p, q, r, s, t = log₁₀(1 / R) at 510, 540, 560, 580, 610 nm respectively.
 
+The five wavelengths correspond to five bands in the hyperspectral cube (31 bands, 400–700 nm, 10 nm step). For each wavelength the reflectance R is read from the cube and converted to log-reciprocal reflectance (absorbance). The formula is applied independently to every pixel, producing a 1024×1024 EI map where each value reflects the erythema at that spatial location. Background pixels yield negative values because their spectral profile does not match the haemoglobin absorption pattern.
+
 ---
 
 ### Architecture
@@ -157,20 +159,37 @@ flowchart TD
 
 ### Setup and quickstart
 
-**1. Request dataset access** (see link above) and extract `Hyper-Skin.7z`.
+**1. Request dataset access** at https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess. After approval you will receive a password and a download link by email.
 
 **2. Install dependencies**
 ```bash
 pip install -r requirements.txt
+brew install p7zip      # macOS — provides the 7z extraction tool
 ```
 
-**3. Configure your dataset path**
+**3. Configure your environment**
 ```bash
 cp .env.example .env
-# Edit .env and set DATA_ROOT to your local Hyper-Skin(RGB, VIS) directory
 ```
 
-**4. Run the pipeline**
+Open `.env` and fill in the three values:
+
+| Variable | Where to find it |
+|--------------------------|---------------------------------------------------|
+| `HYPERSKIN_PASS`         | Dataset access email — "Dataset Access Password"  |
+| `HYPERSKIN_GDRIVE_URL`   | Dataset access email — "Dataset Download" link    |
+| `DATA_ROOT`              | Set after extraction (step 4 prints the correct path) |
+
+**4. Download and extract the dataset**
+```bash
+python scripts/extract_dataset.py --output-dir /path/to/destination
+```
+
+The script reads `HYPERSKIN_PASS` and `HYPERSKIN_GDRIVE_URL` from `.env`, downloads the archive, and extracts only the `Hyper-Skin(RGB, VIS)` folder — the `Hyper-Skin(MSI, NIR)` folder is skipped as it is not used by this project. The correct `DATA_ROOT` value is printed at the end. Copy that value into `.env`.
+
+> **Note:** Use the raw Google Drive link from the email (starts with `https://drive.google.com/`), not the Outlook SafeLinks wrapper. If the link requires Google login or the Drive quota is exceeded, download `Hyper-Skin.7z` manually to the output directory first, then re-run the script — it will detect the archive and skip the download step.
+
+**5. Run the pipeline**
 ```bash
 # Build the manifest (creates data/processed/manifest.csv)
 python scripts/build_manifest.py

@@ -6,3 +6,4 @@ Pillow
 matplotlib
 python-dotenv
 jupyter>=1.0
+gdown
