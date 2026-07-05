@@ -3,8 +3,8 @@
 Usage:
     python scripts/extract_dataset.py [--output-dir /path/to/destination]
 
-Fill in HYPERSKIN_PASS and HYPERSKIN_GDRIVE_URL in your .env file (see .env.example).
-Both values are provided in the dataset access email from the Hyper-Skin authors.
+Fill in HYPERSKIN_PASS and RCLONE_REMOTE in your .env file (see .env.example).
+See README.md Setup section for the full rclone configuration steps.
 
 Requires:
     pip install -r requirements.txt
@@ -35,37 +35,43 @@ def check_dependency(cmd: str, install_hint: str) -> None:
         sys.exit(1)
 
 
-def download_archive(gdrive_url: str, dest_path: Path) -> None:
-    """Download the archive from Google Drive using gdown."""
-    try:
-        import gdown
-    except ImportError:
-        print("ERROR: gdown is not installed. Run:  pip install gdown")
-        sys.exit(1)
+def check_rclone_configured(remote: str) -> bool:
+    """Return True if the named rclone remote exists."""
+    result = subprocess.run(["rclone", "listremotes"], capture_output=True, text=True)
+    return f"{remote}:" in result.stdout
 
+
+def download_archive(dest_path: Path, rclone_remote: str) -> None:
+    """Download the archive from Google Drive using rclone."""
     if dest_path.exists():
         print(f"Archive already present at {dest_path} — skipping download.")
         return
 
-    print(f"Downloading from Google Drive → {dest_path} ...")
-    try:
-        gdown.download(gdrive_url, str(dest_path), quiet=False)
-    except Exception as e:
-        print(f"ERROR: Download failed — {e}")
-        print("If Drive quota is exceeded, download Hyper-Skin.7z manually from the browser,")
-        print(f"save it to {dest_path}, then re-run this script.")
+    check_dependency("rclone", "Install on macOS with:  brew install rclone")
+
+    if not check_rclone_configured(rclone_remote):
+        print(f"ERROR: rclone has no remote named '{rclone_remote}'.")
+        print("Run the one-time setup before re-running this script:")
+        print("  rclone config")
+        print("  → n  (new remote)")
+        print(f"  → name: {rclone_remote}")
+        print("  → storage: drive")
+        print("  → leave client_id and client_secret blank")
+        print("  → follow the browser login prompt")
         sys.exit(1)
 
-    if not dest_path.exists():
-        print("ERROR: Download finished but archive not found at the expected path.")
-        sys.exit(1)
+    print(f"Downloading Hyper-Skin.7z from Google Drive → {dest_path} ...")
+    result = subprocess.run([
+        "rclone", "copy",
+        "--drive-shared-with-me",
+        "--progress",
+        f"{rclone_remote}:Hyper-Skin.7z",
+        str(dest_path.parent),
+    ])
 
-    size_mb = dest_path.stat().st_size / (1024 ** 2)
-    if size_mb < 1:
-        dest_path.unlink()
-        print(f"ERROR: Downloaded file is only {size_mb:.2f} MB — not a valid archive.")
-        print("The URL may be an Outlook SafeLinks wrapper. Copy the actual Google Drive")
-        print("URL (starts with https://drive.google.com/) into HYPERSKIN_GDRIVE_URL in .env.")
+    if result.returncode != 0 or not dest_path.exists():
+        print("ERROR: Download failed.")
+        print("Ensure 'Hyper-Skin.7z' appears in your Google Drive 'Shared with me' section.")
         sys.exit(1)
 
     print("Download complete.")
@@ -115,22 +121,23 @@ def main() -> None:
     output_dir = Path(args.output_dir).expanduser().resolve()
 
     password = os.environ.get("HYPERSKIN_PASS")
-    gdrive_url = os.environ.get("HYPERSKIN_GDRIVE_URL")
+    rclone_remote = os.environ.get("RCLONE_REMOTE")
 
     if not password:
         print("ERROR: HYPERSKIN_PASS is not set.")
-        print('Set it before running:  export HYPERSKIN_PASS="your_password_here"')
+        print('Set it in .env:  HYPERSKIN_PASS=your_password_here')
         sys.exit(1)
 
-    if not gdrive_url:
-        print("ERROR: HYPERSKIN_GDRIVE_URL is not set.")
-        print('Set it before running:  export HYPERSKIN_GDRIVE_URL="https://drive.google.com/..."')
+    if not rclone_remote:
+        print("ERROR: RCLONE_REMOTE is not set.")
+        print('Set it in .env to the name you gave your Google Drive remote during rclone config.')
+        print('Example:  RCLONE_REMOTE=gdrive')
         sys.exit(1)
 
     check_dependency("7z", "Install on macOS with:  brew install p7zip")
 
     archive_path = output_dir / ARCHIVE_NAME
-    download_archive(gdrive_url, archive_path)
+    download_archive(archive_path, rclone_remote)
     extract_archive(archive_path, password, output_dir)
     verify_structure(output_dir)
 

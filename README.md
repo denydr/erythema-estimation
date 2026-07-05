@@ -159,37 +159,79 @@ flowchart TD
 
 ### Setup and quickstart
 
-**1. Request dataset access** at https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess. After approval you will receive a password and a download link by email.
+**1. Request dataset access** at https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess. After approval you will receive a password by email and `Hyper-Skin.7z` will be shared with your Google account on Google Drive.
 
 **2. Install dependencies**
 ```bash
 pip install -r requirements.txt
 brew install p7zip      # macOS — provides the 7z extraction tool
+brew install rclone     # macOS — used to download the dataset from Google Drive
 ```
 
-**3. Configure your environment**
+**3. Set up rclone Google Drive remote (one-time)**
+
+rclone authenticates with your Google account to download the dataset. Run the interactive setup:
+```bash
+rclone config
+```
+
+Follow these steps at the prompts:
+
+| Prompt                  | What to enter |
+|-------------------------|---------------|
+| New remote              | `n` |
+| Name                    | any name, e.g. `gdrive_thesis` — you will use this in `.env` |
+| Storage type            | `22` (Google Drive) |
+| client_id               | press Enter (leave blank) |
+| client_secret           | press Enter (leave blank) |
+| scope                   | `2` (read-only) |
+| service_account_file    | press Enter (leave blank) |
+| Edit advanced config    | `n` |
+| Use web browser         | `y` — a browser window opens; log in with the Google account that has dataset access and click Allow |
+| Configure as Shared Drive | `n` |
+| Keep remote             | `y` |
+| Quit                    | `q` |
+
+**4. Configure your environment**
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in the three values:
+Open `.env` and fill in the values:
 
-| Variable | Where to find it |
-|--------------------------|---------------------------------------------------|
-| `HYPERSKIN_PASS`         | Dataset access email — "Dataset Access Password"  |
-| `HYPERSKIN_GDRIVE_URL`   | Dataset access email — "Dataset Download" link    |
-| `DATA_ROOT`              | Set after extraction (step 4 prints the correct path) |
+| Variable         | Where to find it |
+|------------------|------------------|
+| `HYPERSKIN_PASS` | Dataset access email — "Dataset Access Password" |
+| `RCLONE_REMOTE`  | The name you chose for the rclone remote in step 3 |
+| `DATA_ROOT`      | Set after extraction (step 5 prints the correct path) |
 
-**4. Download and extract the dataset**
+**5. Download and extract the dataset**
 ```bash
-python scripts/extract_dataset.py --output-dir /path/to/destination
+caffeinate -di python scripts/extract_dataset.py --output-dir /path/to/destination
 ```
 
-The script reads `HYPERSKIN_PASS` and `HYPERSKIN_GDRIVE_URL` from `.env`, downloads the archive, and extracts only the `Hyper-Skin(RGB, VIS)` folder — the `Hyper-Skin(MSI, NIR)` folder is skipped as it is not used by this project. The correct `DATA_ROOT` value is printed at the end. Copy that value into `.env`.
+> **Important:** The archive is ~100 GB and takes longer to download. It cannot be resumed if interrupted. Leave the machine plugged in overnight — `caffeinate -di` prevents macOS from sleeping. On Windows, disable sleep in Power Settings before running.
 
-> **Note:** Use the raw Google Drive link from the email (starts with `https://drive.google.com/`), not the Outlook SafeLinks wrapper. If the link requires Google login or the Drive quota is exceeded, download `Hyper-Skin.7z` manually to the output directory first, then re-run the script — it will detect the archive and skip the download step.
+Once complete, the script prints the correct `DATA_ROOT` value — copy it into `.env`.
 
-**5. Run the pipeline**
+**What the script produces:**
+
+```
+Google Drive                       local disk (/path/to/destination)
+─────────────────                  ──────────────────────────────────────────
+Hyper-Skin.7z (~100 GB)            Hyper-Skin(RGB, VIS)/
+  ├── Hyper-Skin(RGB, VIS)/   →      ├── train/
+  │     ├── RGB/*.jpg                │     ├── RGB/*.jpg   (246 images)
+  │     └── VIS/*.mat                │     └── VIS/*.mat   (246 cubes)
+  └── Hyper-Skin(MSI, NIR)/          ├── test/
+        [skipped — not used]         │     ├── RGB/*.jpg   (42 images)
+                                     │     └── VIS/*.mat   (42 cubes)
+                                     └── valid/
+                                           ├── RGB/*.jpg   (18 images)
+                                           └── VIS/*.mat   (18 cubes)
+```
+
+**6. Run the pipeline**
 ```bash
 # Build the manifest (creates data/processed/manifest.csv)
 python scripts/build_manifest.py
