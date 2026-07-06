@@ -50,15 +50,19 @@ archive (`Hyper-Skin.7z`). Once extracted it contains:
 Hyper-Skin(MSI, NIR)/       ← not used by this project
 Hyper-Skin(RGB, VIS)/       ← used by this project
     train/
-        RGB/    *.jpg
-        VIS/    *.mat
+        RGB/    p001_neutral_front.jpg, p001_neutral_left.jpg, ...   (p{xxx}_{facial_pose}_{direction}.jpg)
+        VIS/    p001_neutral_front.mat, p001_neutral_left.mat, ...   (p{xxx}_{facial_pose}_{direction}.mat)
     test/
-        RGB/    *.jpg
+        RGB/    *.jpg   (same p{xxx}_{facial_pose}_{direction} convention)
         VIS/    *.mat
     valid/
         RGB/    *.jpg
         VIS/    *.mat
 ```
+
+Filenames follow `p{xxx}_{facial_pose}_{direction}`: `p{xxx}` = subject (e.g. `p012`),
+`{facial_pose}` ∈ {`neutral`, `smile`}, `{direction}` ∈ {`front`, `left`, `right`}. Each RGB
+`.jpg` and its paired VIS `.mat` share the same stem (e.g. `p012_neutral_left`).
 
 ---
 
