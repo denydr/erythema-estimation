@@ -47,17 +47,17 @@ After approval you will receive a download link and access password by email. Th
 archive (`Hyper-Skin.7z`). Once extracted it contains:
 
 ```
-Hyper-Skin(MSI, NIR)/       ← not used by this project
-Hyper-Skin(RGB, VIS)/       ← used by this project
+Hyper-Skin(MSI, NIR)/       
+Hyper-Skin(RGB, VIS)/       
     train/
-        RGB/    p001_neutral_front.jpg, p001_neutral_left.jpg, ...   (p{xxx}_{facial_pose}_{direction}.jpg)
-        VIS/    p001_neutral_front.mat, p001_neutral_left.mat, ...   (p{xxx}_{facial_pose}_{direction}.mat)
+        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
+        VIS/    p{xxx}_{facial_pose}_{direction}.mat
     test/
-        RGB/    *.jpg   (same p{xxx}_{facial_pose}_{direction} convention)
-        VIS/    *.mat
+        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
+        VIS/    p{xxx}_{facial_pose}_{direction}.mat
     valid/
-        RGB/    *.jpg
-        VIS/    *.mat
+        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
+        VIS/    p{xxx}_{facial_pose}_{direction}.mat
 ```
 
 Filenames follow `p{xxx}_{facial_pose}_{direction}`: `p{xxx}` = subject (e.g. `p012`),
