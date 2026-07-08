@@ -42,3 +42,7 @@ DAWSON_WAVELENGTHS = [510, 540, 560, 580, 610]
 
 # Reflectance values clipped to this floor before log10 to avoid log(0)
 REFLECTANCE_FLOOR = 1e-6
+
+# Destriping: window (in columns) of the median filter used to isolate the
+# high-frequency per-column stripe offset in an EI map (notebook 01c).
+DESTRIPE_MEDIAN_WINDOW = 100
