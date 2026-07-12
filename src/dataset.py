@@ -34,7 +34,8 @@ class ErythemaDataset(Dataset):
     def __init__(self, manifest, ei_dir, mask_dir, stats, split=None,
                  mode="train", crop_size=config.CROP_SIZE,
                  min_skin_frac=config.CROP_MIN_SKIN_FRAC,
-                 max_tries=config.CROP_MAX_TRIES, flip=True, seed=None):
+                 max_tries=config.CROP_MAX_TRIES, flip=True,
+                 crops_per_image=1, seed=None):
         """
         Parameters
         ----------
@@ -51,6 +52,9 @@ class ErythemaDataset(Dataset):
         crop_size, min_skin_frac, max_tries : crop policy (train mode).
         flip : bool
             Enable random horizontal flip (train mode only).
+        crops_per_image : int
+            Random crops drawn per image per epoch (train mode). Multiplies the
+            dataset length; each draw re-crops the same image independently.
         seed : int, optional
             Seed for this dataset's RNG. With multiple DataLoader workers, use
             worker_init_fn (below) so each worker gets a distinct crop stream.
@@ -68,13 +72,14 @@ class ErythemaDataset(Dataset):
         self.min_skin_frac = min_skin_frac
         self.max_tries = max_tries
         self.flip = flip
+        self.crops_per_image = crops_per_image if mode == "train" else 1
         self._rng = np.random.default_rng(seed)
 
     def __len__(self):
-        return len(self.rows)
+        return len(self.rows) * self.crops_per_image
 
     def __getitem__(self, i):
-        row = self.rows.iloc[i]
+        row = self.rows.iloc[i % len(self.rows)]
         stem = f"{row['subject_id']}_{row['pose']}_{row['view']}"
         rgb = load_rgb(str(row["rgb_path"]))                       # (H, W, 3) uint8
         ei = np.load(self.ei_dir / f"{stem}.npy")                 # (H, W) float32

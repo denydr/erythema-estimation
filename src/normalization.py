@@ -1,13 +1,15 @@
 """Normalisation for the model inputs and target (notebook 03).
 
-Technique: min-max normalisation to [0,1] for both streams — fixed-range scaling
-(/255, known uint8 bounds) for RGB; robust percentile-based min-max (p1/p99 with
-clipping, bounds measured from the data) for the EI target. Chosen over z-score
-standardisation because a bounded [0,1] target pairs with a sigmoid output and a
-fixed scale for SSIM/error maps; the percentiles keep log(1/R) outlier tails from
-defining the scale.
+RGB input to the MODEL uses ImageNet standardisation ((rgb/255 - mean)/std,
+preprocess_rgb_imagenet), because the ResNet-34 encoder is pretrained on ImageNet
+and expects that input space. normalize_rgb (plain /255 -> [0,1]) is kept only for
+DISPLAY in the notebooks (ImageNet-standardised RGB has negative values and does
+not render); it is not the model input.
 
-RGB input is scaled by 1/255 at load time (no saved statistics needed).
+EI target technique: robust percentile-based min-max to [0,1] (p1/p99 with clipping,
+bounds measured from the data). Chosen over z-score standardisation because a bounded
+[0,1] target pairs with a sigmoid output and a fixed scale for SSIM/error maps; the
+percentiles keep log(1/R) outlier tails from defining the scale.
 
 The EI target (destriped EI) is scaled to [0, 1] with robust percentiles. The
 percentiles are computed from the TRAIN split, over SKIN pixels only (mask==1),

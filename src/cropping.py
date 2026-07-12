@@ -1,3 +1,4 @@
+
 """Mask-guided random cropping for the model stage (Stage 3).
 
 Full 1024x1024 maps do not fit in memory, so training samples random square crops.

@@ -2,7 +2,7 @@
 
 The EI target is only defined on facial skin, so the loss is averaged over skin
 pixels (mask == 1) only — background pixels contribute nothing to the gradient.
-Applied identically in training and validation (the contract in the README).
+Applied identically in training and validation.
 """
 
 import torch

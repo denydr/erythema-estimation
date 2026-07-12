@@ -76,3 +76,16 @@ CROP_MAX_TRIES = 20
 # the EI target keeps the [0,1] normalisation above. Single-channel [0,1] output (sigmoid).
 ENCODER_NAME = "resnet34"
 ENCODER_WEIGHTS = "imagenet"
+
+# Training (scripts/train.py). One epoch draws CROPS_PER_IMAGE random crops per train
+# image (more varied views per epoch than a single crop). Validation predicts whole
+# 1024x1024 images by tiling CROP_SIZE patches. Best model kept by validation MAE;
+# training stops after EARLY_STOP_PATIENCE epochs without improvement (MAX_EPOCHS cap).
+CROPS_PER_IMAGE = 4
+BATCH_SIZE = 8
+LEARNING_RATE = 4e-4
+MAX_EPOCHS = 100
+EARLY_STOP_PATIENCE = 15
+NUM_WORKERS = 2
+SEED = 0
+OUTPUT_DIR = "./outputs"  # checkpoints + training history (gitignored)
