@@ -53,7 +53,7 @@ DESTRIPE_MEDIAN_WINDOW = 100
 SEG_MODEL_PATH = "models/selfie_multiclass.tflite"
 SEG_MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/image_segmenter/"
-    "selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite"
+    "selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite"
 )
 FACE_SKIN_CLASS = 3  # 0 bg, 1 hair, 2 body-skin, 3 face-skin, 4 clothes, 5 accessories
 
@@ -61,3 +61,18 @@ FACE_SKIN_CLASS = 3  # 0 bg, 1 hair, 2 body-skin, 3 face-skin, 4 clothes, 5 acce
 # is scaled to [0,1] with these robust percentiles, computed from TRAIN-split skin
 # pixels only (mask==1) so the scale reflects the erythema signal, not background.
 NORM_PERCENTILES = (1, 99)
+
+# Model stage (Stage 3 U-Net). Full 1024x1024 maps do not fit in memory, so training
+# samples random CROP_SIZE crops. Crops are mask-guided: a crop is accepted only if at
+# least CROP_MIN_SKIN_FRAC of its pixels are skin (mask==1), resampling up to
+# CROP_MAX_TRIES times, then falling back to a crop centred on the mask centroid. The
+# same crop and horizontal flip are applied to RGB, EI, and mask together.
+CROP_SIZE = 256
+CROP_MIN_SKIN_FRAC = 0.10
+CROP_MAX_TRIES = 20
+
+# U-Net via segmentation_models_pytorch. ResNet-34 encoder pretrained on ImageNet, so
+# the RGB input must use the encoder's ImageNet mean/std preprocessing (NOT plain /255);
+# the EI target keeps the [0,1] normalisation above. Single-channel [0,1] output (sigmoid).
+ENCODER_NAME = "resnet34"
+ENCODER_WEIGHTS = "imagenet"
