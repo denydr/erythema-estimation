@@ -9,6 +9,8 @@ cachedir.tag
 data/processed/manifest.csv
 data/processed/ei_maps/
 data/processed/ei_maps_destriped/
+data/processed/masks/
+data/processed/norm_stats.json
 notebooks/.ipynb_checkpoints/
 TODO.py
 models/

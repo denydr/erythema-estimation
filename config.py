@@ -46,3 +46,18 @@ REFLECTANCE_FLOOR = 1e-6
 # Destriping: window (in columns) of the median filter used to isolate the
 # high-frequency per-column stripe offset in an EI map (notebook 01c).
 DESTRIPE_MEDIAN_WINDOW = 100
+
+# Skin masking (notebook 02_skin_masking). The mask is produced from RGB by
+# MediaPipe's multiclass selfie segmenter, keeping the face-skin class only
+# (per-pixel; hair and background excluded by class). Binary 0/1, saved per image.
+SEG_MODEL_PATH = "models/selfie_multiclass.tflite"
+SEG_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/image_segmenter/"
+    "selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite"
+)
+FACE_SKIN_CLASS = 3  # 0 bg, 1 hair, 2 body-skin, 3 face-skin, 4 clothes, 5 accessories
+
+# Normalisation (notebook 03). RGB is scaled by 1/255 at load time. The EI target
+# is scaled to [0,1] with these robust percentiles, computed from TRAIN-split skin
+# pixels only (mask==1) so the scale reflects the erythema signal, not background.
+NORM_PERCENTILES = (1, 99)
