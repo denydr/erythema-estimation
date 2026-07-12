@@ -153,10 +153,14 @@ a face-skin mask is computed per image, and both streams are normalised.
 
 #### 2.3 Normalisation
 
-Both model streams are min-max normalised to [0, 1] (`src/normalization.py`):
+Normalisation is applied on the fly by the data loader (`src/normalization.py`):
 
-- **RGB input:** fixed-range scaling — ÷ 255 at load time, no saved statistics.
-- **EI target:** robust percentile-based min-max — `(ei − p1) / (p99 − p1)`, clipped to [0, 1].
+- **RGB input:** ImageNet standardisation — `(rgb/255 − mean) / std` per channel
+  (`preprocess_rgb_imagenet`). The ResNet-34 encoder is pretrained on ImageNet and expects inputs
+  in that space, so plain ÷255 is not used for the model input. (`normalize_rgb`, plain ÷255 → [0,1],
+  is kept only for *displaying* RGB in the notebooks — ImageNet-standardised RGB has negative values
+  and does not render.)
+- **EI target:** robust percentile-based min-max to [0, 1] — `(ei − p1) / (p99 − p1)`, clipped to [0, 1].
 - The percentiles are computed **once, from train-split skin pixels only** (destriped EI where
   mask == 1) and saved to `norm_stats.json`; the same saved statistics are applied to every split
   at load time — no test-set leakage.
@@ -166,9 +170,9 @@ Both model streams are min-max normalised to [0, 1] (`src/normalization.py`):
 - Nothing normalised is written to disk — artifacts stay in real EI units, the two saved numbers are
   applied on the fly by the data loader, and predictions remain invertible to real EI.
 
-**Model contract (Stage 3):** input = normalised RGB (full frame, unmasked) → U-Net → normalised
-destriped EI map; the loss and all metrics are computed on `mask == 1` pixels only, consistently
-in training and evaluation.
+**Model contract (Stage 3):** input = ImageNet-standardised RGB (full frame, unmasked) → U-Net →
+normalised destriped EI map; the loss and all metrics are computed on `mask == 1` pixels only,
+consistently in training and evaluation.
 
 ---
 

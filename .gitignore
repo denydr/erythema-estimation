@@ -14,3 +14,4 @@ data/processed/norm_stats.json
 notebooks/.ipynb_checkpoints/
 TODO.py
 models/
+outputs/
