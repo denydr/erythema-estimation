@@ -5,4 +5,5 @@ pandas
 Pillow
 matplotlib
 python-dotenv
+mediapipe==0.10.35
 jupyter>=1.0
