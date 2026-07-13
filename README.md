@@ -263,11 +263,6 @@ flowchart LR
 - **Device:** CUDA → MPS → CPU, chosen automatically (`get_device`).
 - **Outputs:** `outputs/best_model.pt`, `outputs/train_history.csv`.
 
-> **TODO (author):** produce the model architecture diagram, and be able to explain the underlying
-> U-Net architecture (encoder / decoder / skip connections) and how the model is initialised
-> (ResNet-34 ImageNet-pretrained encoder + decoder trained from scratch, via
-> `segmentation_models_pytorch`).
-
 ---
 
 ### Stage 4 — Evaluation
@@ -406,7 +401,7 @@ and says what to run first if something is missing.
 behind it and verification of its outputs:
 
 ```bash
-jupyter lab
+jupyter notebook
 ```
 
 | Notebook | Run after | Shows |
