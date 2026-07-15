@@ -1,19 +1,8 @@
-"""PyTorch Dataset for the U-Net stage (Stage 3): RGB -> normalised EI map.
+"""PyTorch Dataset yielding paired (rgb, ei, mask) tensors for one split.
 
-Each sample yields (rgb, ei, mask) as float32 CHW tensors, pixel-aligned:
-    rgb  : (3, H, W)  ImageNet-normalised for the pretrained encoder
-    ei   : (1, H, W)  destriped EI normalised to [0, 1] with train-skin stats
-    mask : (1, H, W)  binary 0/1 skin selector (for the masked loss)
-
-Two modes:
-    "train" -> a mask-guided random CROP_SIZE crop + optional horizontal flip
-               (memory management + geometric augmentation).
-    "full"  -> the whole 1024x1024 map, no crop, no flip (for tiled inference /
-               validation; see the tiling utility in the training stage).
-
-The mask is returned as a separate channel, never baked into the EI — the loss
-and metrics select skin pixels with it. RGB uses ImageNet preprocessing (the
-encoder is pretrained); the EI target keeps the pipeline's [0, 1] normalisation.
+Public API:
+    ErythemaDataset(manifest, ei_dir, mask_dir, stats, ...) -> torch Dataset
+    worker_init_fn(worker_id)
 """
 
 from pathlib import Path
@@ -29,7 +18,11 @@ from src.normalization import normalize_ei, preprocess_rgb_imagenet
 
 
 class ErythemaDataset(Dataset):
-    """Paired (RGB, EI, mask) samples for one split."""
+    """PyTorch Dataset yielding paired (RGB, EI, mask) tensors for one split.
+
+    In "train" mode returns mask-guided random crops with optional horizontal
+    flip; in "full" mode returns whole 1024x1024 maps for tiled inference.
+    """
 
     def __init__(self, manifest, ei_dir, mask_dir, stats, split=None,
                  mode="train", crop_size=config.CROP_SIZE,
@@ -76,9 +69,23 @@ class ErythemaDataset(Dataset):
         self._rng = np.random.default_rng(seed)
 
     def __len__(self):
+        """Number of samples: images x crops_per_image (train) or images (full)."""
         return len(self.rows) * self.crops_per_image
 
     def __getitem__(self, i):
+        """Load one (rgb, ei, mask) sample.
+
+        Parameters
+        ----------
+        i : int
+            Sample index in [0, len).
+
+        Returns
+        -------
+        tuple of torch.Tensor
+            (rgb, ei, mask): rgb (3, H, W) ImageNet-standardised float32; ei
+            (1, H, W) normalised to [0, 1] float32; mask (1, H, W) binary float32.
+        """
         row = self.rows.iloc[i % len(self.rows)]
         stem = f"{row['subject_id']}_{row['pose']}_{row['view']}"
         rgb = load_rgb(str(row["rgb_path"]))                       # (H, W, 3) uint8

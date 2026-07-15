@@ -1,10 +1,10 @@
-"""CLI entry point: generate manifest.csv from the dataset folder structure.
+"""Generate the dataset manifest CSV from the dataset folder structure.
 
 Usage:
     python scripts/build_manifest.py
 
-Reads paths and overrides from config.py. Writes manifest.csv to
-data/processed/manifest.csv and prints a summary.
+Reads paths and split overrides from config.py; writes data/processed/manifest.csv
+and prints a summary.
 """
 
 import sys

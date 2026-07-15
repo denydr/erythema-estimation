@@ -1,14 +1,10 @@
+"""Mask-guided random cropping helpers (pure NumPy).
 
-"""Mask-guided random cropping for the model stage (Stage 3).
-
-Full 1024x1024 maps do not fit in memory, so training samples random square crops.
-Because facial skin is only ~26% of the frame (and off-centre on side profiles),
-crops are guided by the mask: a crop is accepted only if enough of it is skin,
-resampling a few times, then falling back to a crop centred on the mask centroid.
-
-These helpers are pure NumPy (no torch) so the crop logic is testable on its own.
-The same crop coordinates must be applied to the RGB, EI, and mask together — the
-Dataset does that via apply_crop; here we only choose the coordinates.
+Public API:
+    centroid_crop_coords(mask, size) -> (y, x)
+    random_crop_coords(mask, size, min_skin_frac, max_tries, rng) -> (y, x)
+    apply_crop(arr, y, x, size) -> np.ndarray
+    hflip(arr) -> np.ndarray
 """
 
 import numpy as np
@@ -17,10 +13,22 @@ import config
 
 
 def centroid_crop_coords(mask: np.ndarray, size: int) -> tuple:
-    """Top-left (y, x) of a `size` crop centred on the mask's skin centroid.
+    """Top-left (y, x) of a crop centred on the mask's skin centroid.
 
-    Clamped so the crop stays inside the image. If the mask is empty, centres
-    the crop on the image instead.
+    Clamped so the crop stays inside the image. If the mask is empty, the crop is
+    centred on the image instead.
+
+    Parameters
+    ----------
+    mask : np.ndarray
+        Shape (H, W) binary mask, 1 = skin.
+    size : int
+        Crop side length.
+
+    Returns
+    -------
+    tuple of int
+        (y, x) top-left corner of the crop.
     """
     h, w = mask.shape
     ys, xs = np.nonzero(mask)
@@ -37,7 +45,7 @@ def random_crop_coords(mask: np.ndarray, size: int = config.CROP_SIZE,
                        min_skin_frac: float = config.CROP_MIN_SKIN_FRAC,
                        max_tries: int = config.CROP_MAX_TRIES,
                        rng: np.random.Generator = None) -> tuple:
-    """Top-left (y, x) of a random `size` crop with at least `min_skin_frac` skin.
+    """Top-left (y, x) of a random crop with at least `min_skin_frac` skin.
 
     Draws up to `max_tries` random positions and returns the first whose skin
     fraction (mask mean over the crop) reaches the threshold. If none qualifies,
@@ -46,15 +54,25 @@ def random_crop_coords(mask: np.ndarray, size: int = config.CROP_SIZE,
     Parameters
     ----------
     mask : np.ndarray
-        (H, W) binary mask, 1 = skin.
+        Shape (H, W) binary mask, 1 = skin.
     size : int
         Crop side length.
     min_skin_frac : float
         Minimum fraction of skin pixels required to accept a crop.
     max_tries : int
         Number of random positions to try before the centroid fallback.
-    rng : np.random.Generator
+    rng : np.random.Generator, optional
         Random source (a fresh default_rng() is used if None).
+
+    Returns
+    -------
+    tuple of int
+        (y, x) top-left corner of the accepted (or fallback) crop.
+
+    Raises
+    ------
+    ValueError
+        If the crop size exceeds the mask dimensions.
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -71,10 +89,36 @@ def random_crop_coords(mask: np.ndarray, size: int = config.CROP_SIZE,
 
 
 def apply_crop(arr: np.ndarray, y: int, x: int, size: int) -> np.ndarray:
-    """Crop `arr` (2-D or 3-D H,W-first) to the `size` square at (y, x)."""
+    """Crop an array to the `size` square at (y, x).
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        2-D or 3-D array with the spatial dimensions first (H, W, ...).
+    y, x : int
+        Top-left corner of the crop.
+    size : int
+        Crop side length.
+
+    Returns
+    -------
+    np.ndarray
+        The cropped view, shape (size, size, ...).
+    """
     return arr[y:y + size, x:x + size]
 
 
 def hflip(arr: np.ndarray) -> np.ndarray:
-    """Horizontal flip of a 2-D or 3-D (H, W, ...) array."""
+    """Horizontally flip an array.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        2-D or 3-D array with the spatial dimensions first (H, W, ...).
+
+    Returns
+    -------
+    np.ndarray
+        The array mirrored along the width axis.
+    """
     return np.flip(arr, axis=1)

@@ -1,10 +1,9 @@
-"""Masked evaluation metrics for the model stage (Stage 3).
+"""Masked evaluation metrics over skin pixels: MAE, MSE, and SSIM.
 
-All metrics are computed over skin pixels only (mask == 1), matching the training
-loss. MAE is the model-selection metric during training;
-MSE and SSIM are reported at evaluation. MAE/MSE are computed on the normalised
-[0, 1] EI space (denormalise by multiplying by the p99-p1 range for EI units);
-SSIM uses data_range=1.0 on the normalised maps.
+Public API:
+    masked_mae(pred, target, mask, eps)  -> float
+    masked_mse(pred, target, mask, eps)  -> float
+    masked_ssim(pred, target, mask)      -> float
 """
 
 import numpy as np
@@ -13,14 +12,40 @@ import torch
 
 def masked_mae(pred: torch.Tensor, target: torch.Tensor,
                mask: torch.Tensor, eps: float = 1e-6) -> float:
-    """Mean absolute error over skin pixels."""
+    """Mean absolute error over skin pixels only.
+
+    Parameters
+    ----------
+    pred, target, mask : torch.Tensor
+        Same shape (..., H, W). mask is binary (0/1); pred and target in [0, 1].
+    eps : float
+        Guards against division by zero when there are no skin pixels.
+
+    Returns
+    -------
+    float
+        Mean absolute error averaged over the skin pixels (mask == 1).
+    """
     err = (pred - target).abs() * mask
     return float(err.sum() / (mask.sum() + eps))
 
 
 def masked_mse(pred: torch.Tensor, target: torch.Tensor,
                mask: torch.Tensor, eps: float = 1e-6) -> float:
-    """Mean squared error over skin pixels."""
+    """Mean squared error over skin pixels only.
+
+    Parameters
+    ----------
+    pred, target, mask : torch.Tensor
+        Same shape (..., H, W). mask is binary (0/1); pred and target in [0, 1].
+    eps : float
+        Guards against division by zero when there are no skin pixels.
+
+    Returns
+    -------
+    float
+        Mean squared error averaged over the skin pixels (mask == 1).
+    """
     err = (pred - target).pow(2) * mask
     return float(err.sum() / (mask.sum() + eps))
 
@@ -28,9 +53,9 @@ def masked_mse(pred: torch.Tensor, target: torch.Tensor,
 def masked_ssim(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> float:
     """Structural similarity averaged over skin pixels.
 
-    Computes the per-pixel SSIM map over the whole image (needed for SSIM's local
-    windows), then averages it over the skin region only — measuring whether the
-    predicted map has the right spatial *structure*, not just the right level.
+    Computes the per-pixel SSIM map over the whole image (SSIM needs local windows),
+    then averages it over the skin region only — measuring whether the predicted map
+    has the right spatial structure, not just the right level.
 
     Parameters
     ----------
@@ -38,6 +63,11 @@ def masked_ssim(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> float
         2-D maps in [0, 1] (normalised EI).
     mask : np.ndarray
         2-D boolean skin mask.
+
+    Returns
+    -------
+    float
+        Mean SSIM over the skin pixels (mask == 1); 1.0 is a perfect match.
     """
     from skimage.metrics import structural_similarity
 

@@ -1,13 +1,11 @@
-"""CLI entry point: batch-destripe the EI maps for all samples in the manifest.
+"""Batch-destripe the EI maps for every image in the manifest.
 
 Usage:
     python scripts/destripe_ei_maps.py
 
-Loads manifest.csv from data/processed/, reads each raw EI map from
-data/processed/ei_maps/, removes the push-broom stripe (notebook 01c), and
-saves the destriped .npy files to data/processed/ei_maps_destriped/.
-Runs offline (no hyperspectral cubes needed). Skips files that already exist
-(resumable). The destriped maps are the model target and the input to masking.
+Reads each raw EI map, removes the push-broom column stripe, and writes the destriped
+.npy to data/processed/ei_maps_destriped/. Runs offline (no cubes); skips existing
+files (resumable).
 """
 
 import sys

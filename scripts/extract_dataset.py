@@ -30,19 +30,50 @@ EXPECTED_SUBDIRS = [
 
 
 def check_dependency(cmd: str, install_hint: str) -> None:
+    """Exit with an error if a required CLI command is not on PATH.
+
+    Parameters
+    ----------
+    cmd : str
+        Command to look for (e.g. "rclone", "7z").
+    install_hint : str
+        Message shown to the user if the command is missing.
+    """
     if shutil.which(cmd) is None:
         print(f"ERROR: '{cmd}' not found. {install_hint}")
         sys.exit(1)
 
 
 def check_rclone_configured(remote: str) -> bool:
-    """Return True if the named rclone remote exists."""
+    """Check whether a named rclone remote exists.
+
+    Parameters
+    ----------
+    remote : str
+        The rclone remote name to look for.
+
+    Returns
+    -------
+    bool
+        True if the remote is configured, otherwise False.
+    """
     result = subprocess.run(["rclone", "listremotes"], capture_output=True, text=True)
     return f"{remote}:" in result.stdout
 
 
 def download_archive(dest_path: Path, rclone_remote: str) -> None:
-    """Download the archive from Google Drive using rclone."""
+    """Download the dataset archive from Google Drive with rclone.
+
+    Skips the download if the archive already exists; exits with an error if rclone
+    is missing, the remote is not configured, or the download fails.
+
+    Parameters
+    ----------
+    dest_path : Path
+        Target path for the downloaded Hyper-Skin.7z.
+    rclone_remote : str
+        Name of the configured rclone Google Drive remote.
+    """
     if dest_path.exists():
         print(f"Archive already present at {dest_path} — skipping download.")
         return
@@ -78,7 +109,17 @@ def download_archive(dest_path: Path, rclone_remote: str) -> None:
 
 
 def extract_archive(archive_path: Path, password: str, output_dir: Path) -> None:
-    """Extract the password-protected 7z archive using the 7z CLI."""
+    """Extract the password-protected 7z archive (RGB/VIS split only).
+
+    Parameters
+    ----------
+    archive_path : Path
+        Path to the downloaded Hyper-Skin.7z.
+    password : str
+        Archive password (from HYPERSKIN_PASS).
+    output_dir : Path
+        Directory to extract into.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"Extracting {archive_path.name} → {output_dir} ...")
     print("Extracting Hyper-Skin(RGB, VIS) only. Files marked with '.' are skipped (MSI/NIR), '-' are extracted.")
@@ -96,7 +137,13 @@ def extract_archive(archive_path: Path, password: str, output_dir: Path) -> None
 
 
 def verify_structure(output_dir: Path) -> None:
-    """Confirm expected RGB/VIS split directories exist after extraction."""
+    """Warn if the expected RGB/VIS split directories are missing after extraction.
+
+    Parameters
+    ----------
+    output_dir : Path
+        Directory the archive was extracted into.
+    """
     print("Verifying dataset structure ...")
     missing = [d for d in EXPECTED_SUBDIRS if not (output_dir / d).exists()]
 

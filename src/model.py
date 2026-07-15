@@ -1,9 +1,8 @@
-"""U-Net for the model stage (Stage 3): RGB patch -> EI map in [0, 1].
+"""U-Net (ResNet-34 encoder) mapping RGB to a single-channel EI map in [0, 1].
 
-A U-Net (Ronneberger et al. 2015) with a ResNet-34 encoder pretrained on ImageNet,
-via segmentation_models_pytorch. Single-channel output with a sigmoid, matching the
-[0, 1]-normalised EI target. The encoder's ImageNet preprocessing is applied to the
-RGB input in the Dataset (src.normalization.preprocess_rgb_imagenet).
+Public API:
+    build_unet(encoder_name, encoder_weights) -> torch.nn.Module
+    get_device() -> torch.device
 """
 
 import torch
@@ -13,14 +12,20 @@ import config
 
 def build_unet(encoder_name=config.ENCODER_NAME,
                encoder_weights=config.ENCODER_WEIGHTS):
-    """Create the U-Net (1-channel sigmoid output).
+    """Build the U-Net with a single-channel sigmoid output.
 
     Parameters
     ----------
     encoder_name : str
-        Backbone, e.g. "resnet34".
+        Encoder backbone, e.g. "resnet34".
     encoder_weights : str or None
-        Pretrained weights, e.g. "imagenet" (None for random init).
+        Pretrained encoder weights, e.g. "imagenet" (None for random init).
+
+    Returns
+    -------
+    torch.nn.Module
+        A segmentation_models_pytorch U-Net taking (N, 3, H, W) RGB and
+        returning (N, 1, H, W) predictions in [0, 1].
     """
     import segmentation_models_pytorch as smp
 
@@ -34,7 +39,14 @@ def build_unet(encoder_name=config.ENCODER_NAME,
 
 
 def get_device():
-    """Return the best available torch device: cuda -> mps -> cpu."""
+    """Select the best available torch device.
+
+    Returns
+    -------
+    torch.device
+        "cuda" if a CUDA GPU is available, otherwise "mps" on Apple Silicon,
+        otherwise "cpu".
+    """
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():

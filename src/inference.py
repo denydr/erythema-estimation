@@ -1,10 +1,7 @@
-"""Tiled inference for the model stage (Stage 3).
+"""Tiled full-image inference for a patch-trained model.
 
-The model is trained on CROP_SIZE patches, but predictions are needed for whole
-1024x1024 images (validation and test). tiled_predict covers the image with a grid
-of CROP_SIZE tiles, predicts each, and stitches them back into a full-size map —
-every pixel predicted once. Tile starts are aligned so the last row/column reaches
-the image edge even when the size is not an exact multiple of the tile.
+Public API:
+    tiled_predict(model, rgb, device, tile) -> torch.Tensor
 """
 
 import torch

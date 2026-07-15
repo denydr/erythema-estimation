@@ -17,8 +17,7 @@ import config
 def load_cube(mat_path: str) -> np.ndarray:
     """Load a .mat hyperspectral cube and return shape (H, W, B) float32.
 
-    Tries scipy.io.loadmat first (MATLAB ≤ v6). Falls back to h5py for
-    MATLAB v7.3 / HDF5 format files.
+    The Hyper-Skin cubes are MATLAB v7.3 files, read with h5py.
 
     Parameters
     ----------
@@ -37,25 +36,9 @@ def load_cube(mat_path: str) -> np.ndarray:
     ValueError
         If the loaded array shape doesn't match config.CUBE_SHAPE.
     """
-    import scipy.io
+    import h5py
 
     path = str(mat_path)
-
-    try:
-        mat = scipy.io.loadmat(path)
-        data_keys = [k for k in mat if not k.startswith("__")]
-        if not data_keys:
-            raise RuntimeError(f"No data keys found in {path}")
-        cube = mat[data_keys[0]]
-        cube = _orient_to_hwb(cube)
-        _check_shape(cube, path)
-        return cube.astype(np.float32)
-
-    except NotImplementedError:
-        # MATLAB v7.3 uses HDF5 — scipy can't read it
-        pass
-
-    import h5py
     with h5py.File(path, "r") as f:
         data_keys = [k for k in f.keys() if not k.startswith("#")]
         if not data_keys:

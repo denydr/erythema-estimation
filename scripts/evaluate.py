@@ -1,15 +1,12 @@
-"""CLI entry point: evaluate the trained U-Net on the TEST split (Stage 3).
+"""Evaluate the trained U-Net on the test split.
 
 Usage:
     python scripts/evaluate.py                       # uses outputs/best_model.pt
     python scripts/evaluate.py --checkpoint path.pt
 
-Loads the best checkpoint, predicts every test image by tiling, and reports masked
-MAE/MSE/SSIM over skin — overall and stratified by view (front/left/right) — against
-a constant-predictor baseline (the honest "is it better than predicting the average"
-check). MAE/MSE are given in normalised units and in denormalised EI units. Also
-writes a four-panel qualitative figure (RGB | GT | prediction | error) for the three
-display-permitted subjects. Outputs go to OUTPUT_DIR. Run after scripts/train.py.
+Predicts every test image by tiling and reports masked MAE/MSE/SSIM over skin,
+stratified by view and pose, in normalised and EI units. Writes per-subject,
+per-view/pose, and aggregate metric tables plus a qualitative figure to OUTPUT_DIR.
 """
 
 import argparse
@@ -34,6 +31,13 @@ DISCLOSURE = ["p012", "p019", "p027"]   # only subjects permitted for display
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse the evaluation command-line arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments (checkpoint path).
+    """
     p = argparse.ArgumentParser(description="Evaluate the erythema U-Net on the test split.")
     p.add_argument("--checkpoint", type=str,
                    default=str(Path(config.OUTPUT_DIR) / "best_model.pt"))
@@ -41,7 +45,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_model(checkpoint: str, device) -> torch.nn.Module:
-    """Build the U-Net architecture and load trained weights (no encoder download)."""
+    """Build the U-Net architecture and load trained weights.
+
+    The encoder is built with random init (no ImageNet download) since the
+    checkpoint supplies all weights.
+
+    Parameters
+    ----------
+    checkpoint : str
+        Path to the saved state_dict (outputs/best_model.pt).
+    device : torch.device
+        Device to load the model onto.
+
+    Returns
+    -------
+    torch.nn.Module
+        The trained U-Net in eval mode on `device`.
+    """
     model = build_unet(encoder_weights=None)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     return model.to(device).eval()
@@ -49,11 +69,30 @@ def load_model(checkpoint: str, device) -> torch.nn.Module:
 
 @torch.no_grad()
 def evaluate(model, manifest, ei_dir, mask_dir, stats, device):
-    """Per-image masked MAE/MSE/SSIM on the test split.
+    """Compute per-image masked MAE/MSE/SSIM on the test split.
 
     MAE/MSE are recorded in normalised [0,1] units (mae_norm/mse_norm — the scale
     to compare against normalised literature values) and in denormalised EI units
     (mae_ei/mse_ei — interpretable magnitude). SSIM is on the normalised maps.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained U-Net.
+    manifest : pd.DataFrame
+        Dataset manifest.
+    ei_dir, mask_dir : Path or str
+        Directories of destriped EI maps and binary masks.
+    stats : dict
+        EI normalisation statistics (from load_stats).
+    device : torch.device
+        Device to run on.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per test image with subject_id, pose, view and the metrics
+        (mae_norm, mse_norm, ssim, mae_ei, mse_ei).
     """
     test = manifest[manifest["split"] == "test"]
     ds = ErythemaDataset(test, ei_dir, mask_dir, stats, mode="full")
@@ -75,7 +114,27 @@ def evaluate(model, manifest, ei_dir, mask_dir, stats, device):
 
 
 def qualitative_figure(model, manifest, ei_dir, mask_dir, stats, device, path):
-    """Four-panel rows (RGB | GT | pred | error) for the disclosure subjects."""
+    """Save a four-panel figure (RGB | GT | prediction | error) per disclosure subject.
+
+    Each row is one display-permitted image (p012/p019/p027), annotated with its
+    SSIM and MAE. GT/prediction share a [0, 1] colour scale; the error map uses a
+    fixed scale across rows.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained U-Net.
+    manifest : pd.DataFrame
+        Dataset manifest.
+    ei_dir, mask_dir : Path or str
+        Directories of destriped EI maps and binary masks.
+    stats : dict
+        EI normalisation statistics.
+    device : torch.device
+        Device to run on.
+    path : Path or str
+        Output path for the PNG figure.
+    """
     import matplotlib.pyplot as plt
 
     rows = manifest[(manifest["subject_id"].isin(DISCLOSURE)) &
@@ -138,6 +197,20 @@ def target_ei_stats(manifest, ei_dir, mask_dir, stats) -> pd.DataFrame:
     the values the target actually takes on skin. Reported in both EI units and
     normalised [0,1] — the same two scales as the metric tables — so an error can be
     read against the signal on whichever scale (a `scale` column labels each row).
+
+    Parameters
+    ----------
+    manifest : pd.DataFrame
+        Dataset manifest.
+    ei_dir, mask_dir : Path or str
+        Directories of destriped EI maps and binary masks.
+    stats : dict
+        EI normalisation statistics (used for the normalised-scale row).
+
+    Returns
+    -------
+    pd.DataFrame
+        Two rows (scale = "EI" and "norm"), columns mean/std/p1/p99/min/max.
     """
     test = manifest[manifest["split"] == "test"]
     vals = []
@@ -167,6 +240,17 @@ def summarise_by_view_pose(df) -> pd.DataFrame:
     Views and poses are taken from the data, not hard-coded. Metrics are aggregated
     ACROSS the images in each group (std = subject-to-subject variation). Both EI
     units and normalised [0,1] are included. Values rounded to 4 decimals.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Per-image metrics from evaluate().
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per (view, pose) group and per-view "all", with mean/std of each
+        metric in EI units and normalised.
     """
     def stats(sub, view, pose):
         return {
@@ -192,6 +276,16 @@ def aggregate_metrics(df) -> pd.DataFrame:
     """Overall mean/std across all test subjects, in EI units and normalised.
 
     SSIM is unitless (no EI-unit form), so its EI columns are left blank.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Per-image metrics from evaluate().
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per metric (MAE, MSE, SSIM) with mean/std in EI and normalised units.
     """
     rows = [
         {"metric": "MAE", "mean_ei": round(df.mae_ei.mean(), 4), "std_ei": round(df.mae_ei.std(), 4),
@@ -205,9 +299,15 @@ def aggregate_metrics(df) -> pd.DataFrame:
 
 
 def print_tables(df, kind="ei") -> None:
-    """One table per view; rows = each pose present, plus 'all'.
+    """Print one metrics table per view; rows = each pose present, plus 'all'.
 
-    kind = "ei" (denormalised EI units) or "norm" (normalised [0,1]). 4 decimals.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Per-image metrics from evaluate().
+    kind : {"ei", "norm"}
+        "ei" prints denormalised EI units; "norm" prints normalised [0, 1].
+        Values are shown to 4 decimals.
     """
     mae, mse = ("mae_ei", "mse_ei") if kind == "ei" else ("mae_norm", "mse_norm")
     unit = "EI units" if kind == "ei" else "normalised"

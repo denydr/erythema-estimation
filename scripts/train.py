@@ -1,15 +1,11 @@
-"""CLI entry point: train the U-Net (Stage 3).
+"""Train the U-Net (RGB -> normalised EI) with a masked L1 loss.
 
 Usage:
-    python scripts/train.py                 # full run, config defaults
+    python scripts/train.py                                            # full run
     python scripts/train.py --epochs 1 --limit-train 8 --limit-val 4   # quick test
 
-Trains RGB patches -> normalised destriped EI on skin (masked L1 loss). Each epoch
-draws CROPS_PER_IMAGE random crops per train image; validation predicts whole images
-by tiling and reports masked MAE/MSE on skin. Keeps the best model by validation MAE
-and stops early after EARLY_STOP_PATIENCE epochs without improvement. Writes the best
-checkpoint and a per-epoch history CSV to OUTPUT_DIR. Run after the preprocessing
-pipeline (masks + destriped EI + norm_stats.json).
+Validates on whole images by tiling, keeps the best model by validation MAE with
+early stopping, and writes the checkpoint and a per-epoch history CSV to OUTPUT_DIR.
 """
 
 import argparse
@@ -34,7 +30,17 @@ from src.normalization import load_stats
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse training arguments (defaults come from config)."""
+    """Parse the training command-line arguments.
+
+    All defaults come from config; --limit-train / --limit-val subset the data
+    for a quick smoke test.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments (epochs, batch_size, crops_per_image, lr, patience,
+        num_workers, seed, limit_train, limit_val).
+    """
     p = argparse.ArgumentParser(description="Train the erythema U-Net (Stage 3).")
     p.add_argument("--epochs", type=int, default=config.MAX_EPOCHS)
     p.add_argument("--batch-size", type=int, default=config.BATCH_SIZE)
@@ -51,7 +57,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def train_one_epoch(model, loader, optimizer, device) -> float:
-    """Run one training epoch; return the mean masked-L1 loss over batches."""
+    """Run one training epoch (masked-L1 loss, backprop, optimizer step).
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The U-Net being trained.
+    loader : torch.utils.data.DataLoader
+        Yields (rgb, ei, mask) training batches.
+    optimizer : torch.optim.Optimizer
+        Optimizer updating the model weights.
+    device : torch.device
+        Device to run on.
+
+    Returns
+    -------
+    float
+        Mean masked-L1 loss over the epoch's batches.
+    """
     model.train()
     total, n = 0.0, 0
     for rgb, ei, mask in loader:
@@ -67,7 +90,25 @@ def train_one_epoch(model, loader, optimizer, device) -> float:
 
 @torch.no_grad()
 def validate(model, dataset, device) -> tuple:
-    """Tile-predict every validation image; return dataset-level (MAE, MSE) on skin."""
+    """Evaluate the model on the validation set by tiled prediction.
+
+    Predicts every whole image by tiling and aggregates the masked error over all
+    skin pixels (dataset-level, not per-image mean).
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained U-Net.
+    dataset : ErythemaDataset
+        Validation dataset in "full" mode (whole images).
+    device : torch.device
+        Device to run on.
+
+    Returns
+    -------
+    tuple of float
+        (MAE, MSE) over skin pixels, in normalised [0, 1] units.
+    """
     model.eval()
     abs_sum = sq_sum = px_sum = 0.0
     for i in range(len(dataset)):

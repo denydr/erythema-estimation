@@ -1,13 +1,11 @@
-"""CLI entry point: compute EI normalisation statistics (notebook 03).
+"""Compute the EI normalisation statistics from train-split skin pixels.
 
 Usage:
     python scripts/compute_norm_stats.py
 
-Reads destriped EI maps (data/processed/ei_maps_destriped/) and binary masks
-(data/processed/masks/), takes the 1st/99th percentiles of EI over TRAIN-split
-skin pixels only (mask==1), and writes data/processed/norm_stats.json. RGB uses
-1/255 at load time and needs no statistics. Run after compute_masks.py and
-destripe_ei_maps.py.
+Reads the destriped EI maps and masks, takes the 1st/99th EI percentiles over
+train-split skin pixels, and writes data/processed/norm_stats.json. Run after
+compute_masks.py and destripe_ei_maps.py.
 """
 
 import sys

@@ -1,21 +1,12 @@
-"""Normalisation for the model inputs and target (notebook 03).
+"""Normalisation of the model input (RGB) and target (EI).
 
-RGB input to the MODEL uses ImageNet standardisation ((rgb/255 - mean)/std,
-preprocess_rgb_imagenet), because the ResNet-34 encoder is pretrained on ImageNet
-and expects that input space. normalize_rgb (plain /255 -> [0,1]) is kept only for
-DISPLAY in the notebooks (ImageNet-standardised RGB has negative values and does
-not render); it is not the model input.
-
-EI target technique: robust percentile-based min-max to [0,1] (p1/p99 with clipping,
-bounds measured from the data). Chosen over z-score standardisation because a bounded
-[0,1] target pairs with a sigmoid output and a fixed scale for SSIM/error maps; the
-percentiles keep log(1/R) outlier tails from defining the scale.
-
-The EI target (destriped EI) is scaled to [0, 1] with robust percentiles. The
-percentiles are computed from the TRAIN split, over SKIN pixels only (mask==1),
-so the scale reflects the erythema signal rather than the background — background
-EI (a different distribution plus corrupted extremes) would otherwise skew it.
-The same saved statistics are applied to every split at load time.
+Public API:
+    compute_ei_norm_stats(manifest, ei_dir, mask_dir, percentiles) -> dict
+    save_stats(stats, path)
+    load_stats(path) -> dict
+    normalize_ei(ei, stats) -> np.ndarray
+    normalize_rgb(rgb) -> np.ndarray
+    preprocess_rgb_imagenet(rgb) -> np.ndarray
 """
 
 import json
@@ -69,7 +60,15 @@ def compute_ei_norm_stats(manifest, ei_dir, mask_dir,
 
 
 def save_stats(stats: dict, path: str) -> None:
-    """Write normalisation statistics to JSON."""
+    """Write normalisation statistics to JSON.
+
+    Parameters
+    ----------
+    stats : dict
+        Statistics dictionary from compute_ei_norm_stats.
+    path : str
+        Destination JSON path (parent directories are created if needed).
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
@@ -77,22 +76,56 @@ def save_stats(stats: dict, path: str) -> None:
 
 
 def load_stats(path: str) -> dict:
-    """Load normalisation statistics from JSON."""
+    """Load normalisation statistics from JSON.
+
+    Parameters
+    ----------
+    path : str
+        Path to the statistics JSON written by save_stats.
+
+    Returns
+    -------
+    dict
+        The saved statistics dictionary.
+    """
     with open(path) as f:
         return json.load(f)
 
 
 def normalize_ei(ei: np.ndarray, stats: dict) -> np.ndarray:
-    """Scale EI to [0, 1] using saved (low, high) percentiles, clipped.
+    """Scale an EI map to [0, 1] using saved (low, high) percentiles, clipped.
 
     Applied to the whole map; only skin pixels are used downstream (masked).
+
+    Parameters
+    ----------
+    ei : np.ndarray
+        A destriped EI map.
+    stats : dict
+        Statistics with "low" and "high" keys (from load_stats).
+
+    Returns
+    -------
+    np.ndarray
+        float32 map scaled to [0, 1] and clipped, same shape as `ei`.
     """
     low, high = stats["low"], stats["high"]
     return np.clip((ei - low) / (high - low), 0.0, 1.0).astype(np.float32)
 
 
 def normalize_rgb(rgb: np.ndarray) -> np.ndarray:
-    """Scale a uint8 [0, 255] RGB image to float32 [0, 1]."""
+    """Scale a uint8 [0, 255] RGB image to float32 [0, 1] (display only).
+
+    Parameters
+    ----------
+    rgb : np.ndarray
+        Shape (H, W, 3), uint8.
+
+    Returns
+    -------
+    np.ndarray
+        float32 image in [0, 1], same shape.
+    """
     return rgb.astype(np.float32) / 255.0
 
 
@@ -103,10 +136,19 @@ IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 def preprocess_rgb_imagenet(rgb: np.ndarray) -> np.ndarray:
-    """Scale a uint8 [0, 255] RGB image to float32 and ImageNet-normalise it.
+    """ImageNet-standardise a uint8 RGB image for the pretrained encoder.
 
-    (rgb/255 - mean) / std, per channel. This is the input transform for the
-    pretrained encoder — use instead of normalize_rgb when the encoder carries
-    ImageNet weights. Shape (H, W, 3) in, same shape out.
+    Computes (rgb/255 - mean) / std per channel. This is the model input transform;
+    use instead of normalize_rgb when the encoder carries ImageNet weights.
+
+    Parameters
+    ----------
+    rgb : np.ndarray
+        Shape (H, W, 3), uint8.
+
+    Returns
+    -------
+    np.ndarray
+        float32 ImageNet-standardised image, same shape (values not in [0, 1]).
     """
     return ((rgb.astype(np.float32) / 255.0 - IMAGENET_MEAN) / IMAGENET_STD).astype(np.float32)

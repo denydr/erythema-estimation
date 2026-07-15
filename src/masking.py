@@ -1,10 +1,8 @@
-"""Face-skin masking (notebook 02_skin_masking).
+"""Binary face-skin mask from an RGB image (MediaPipe multiclass selfie segmenter).
 
-The mask is produced from the RGB image alone, by MediaPipe's multiclass selfie
-segmenter, keeping the face-skin class only (per-pixel; hair and background are
-excluded by class — no threshold or morphology). The output is a binary (0/1)
-uint8 array. Masks are saved one .npy per image and multiplied into the EI
-target / RGB downstream (never pre-baked into them).
+Public API:
+    compute_mask(rgb) -> np.ndarray                shape (H, W), uint8 {0, 1}
+    batch_compute_masks(manifest, output_dir)
 """
 
 import urllib.request

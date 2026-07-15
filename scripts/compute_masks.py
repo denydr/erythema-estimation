@@ -1,13 +1,11 @@
-"""CLI entry point: compute binary face-skin masks for all manifest samples.
+"""Batch-compute the binary face-skin mask for every image in the manifest.
 
 Usage:
     python scripts/compute_masks.py
 
-Loads manifest.csv from data/processed/, reads each RGB image, runs the
-MediaPipe face-skin segmenter (notebook 02_skin_masking), and saves a binary
-(0/1) mask .npy per image to data/processed/masks/. Skips files that already
-exist (resumable). Needs the RGB images (the dataset SSD). The masks are the
-region selector multiplied into the EI target / RGB downstream.
+Reads each RGB image, runs the MediaPipe face-skin segmenter, and writes a binary
+(0/1) mask .npy per image to data/processed/masks/. Skips existing files (resumable);
+needs the RGB images on the dataset SSD.
 """
 
 import sys

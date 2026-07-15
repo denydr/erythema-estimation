@@ -1,11 +1,10 @@
-"""CLI entry point: batch-compute EI maps for all samples in the manifest.
+"""Batch-compute the raw Dawson EI map for every image in the manifest.
 
 Usage:
     python scripts/compute_ei_maps.py
 
-Loads manifest.csv from data/processed/, computes a Dawson EI map for
-each sample, and saves .npy files to data/processed/ei_maps/.
-Skips files that already exist (resumable).
+Reads the manifest and VIS cubes; writes one EI map .npy per image to
+data/processed/ei_maps/. Skips existing files (resumable).
 """
 
 import sys

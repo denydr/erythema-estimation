@@ -1,8 +1,7 @@
-"""Masked loss for the model stage (Stage 3).
+"""Masked L1 loss, averaged over skin pixels only.
 
-The EI target is only defined on facial skin, so the loss is averaged over skin
-pixels (mask == 1) only — background pixels contribute nothing to the gradient.
-Applied identically in training and validation.
+Public API:
+    masked_l1_loss(pred, target, mask, eps) -> torch.Tensor
 """
 
 import torch
@@ -20,6 +19,11 @@ def masked_l1_loss(pred: torch.Tensor, target: torch.Tensor,
         Same shape (N, 1, H, W). mask is binary (0/1); pred and target in [0, 1].
     eps : float
         Guards against division by zero when a batch has no skin pixels.
+
+    Returns
+    -------
+    torch.Tensor
+        Scalar loss: the mean absolute error over the skin pixels (mask == 1).
     """
     abs_err = (pred - target).abs() * mask
     return abs_err.sum() / (mask.sum() + eps)
