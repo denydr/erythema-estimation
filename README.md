@@ -211,10 +211,7 @@ flowchart LR
 Normalisation is applied on the fly by the data loader (`src/normalization.py`):
 
 - **RGB input:** ImageNet standardisation — `(rgb/255 − mean) / std` per channel
-  (`preprocess_rgb_imagenet`). The ResNet-34 encoder is pretrained on ImageNet and expects inputs
-  in that space, so plain ÷255 is not used for the model input. (`normalize_rgb`, plain ÷255 → [0,1],
-  is kept only for *displaying* RGB in the notebooks — ImageNet-standardised RGB has negative values
-  and does not render.)
+  (`preprocess_rgb_imagenet`), matching the ImageNet-pretrained ResNet-34 encoder.
 - **EI target:** robust percentile-based min-max to [0, 1] — `(ei − p1) / (p99 − p1)`, clipped to [0, 1].
 - The percentiles are computed **once, from train-split skin pixels only** (destriped EI where
   mask == 1) and saved to `norm_stats.json`; the same saved statistics are applied to every split
@@ -259,7 +256,8 @@ flowchart LR
   random 256×256 crop** (≥10% skin, resampled up to 20×, centroid fallback) plus a random horizontal
   flip — the same crop applied to RGB, EI, and mask together.
 - **Validation:** each epoch predicts whole 1024×1024 images by **tiling** (`src/inference.py`) and
-  scores masked MAE/MSE; the best checkpoint (lowest val MAE) is kept, with early stopping.
+  scores **per-image masked MAE** (the same metric and aggregation used at evaluation); the best
+  checkpoint (lowest val MAE) is kept, with early stopping.
 - **Device:** CUDA → MPS → CPU, chosen automatically (`get_device`).
 - **Outputs:** `outputs/best_model.pt`, `outputs/train_history.csv`.
 
@@ -405,15 +403,6 @@ behind it and verification of its outputs:
 ```bash
 jupyter notebook
 ```
-
-| Notebook | Run after | Shows |
-|----------|-----------|-------|
-| `01_data_exploration.ipynb` | step 1 | dataset sanity checks before the batch run |
-| `01b_stripe_analysis.ipynb` | step 2 | characterisation of the push-broom stripe |
-| `01c_ei_destriping.ipynb` | step 3 | validation of the destriping method |
-| `01d_destriping_relevance.ipynb` | steps 3–4 | destriping on the skin region (raw vs destriped) |
-| `02_skin_masking.ipynb` | step 4 | masking approach selection + validation |
-| `03_normalization.ipynb` | step 5 | mask overlays + normalised input/target verification |
 
 Notebooks are committed without outputs; run them top-to-bottom to regenerate the figures.
 

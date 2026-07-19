@@ -24,7 +24,7 @@ import config
 from src.dataset import ErythemaDataset, worker_init_fn
 from src.inference import tiled_predict
 from src.losses import masked_l1_loss
-from src.metrics import masked_mae, masked_mse
+from src.metrics import masked_mae
 from src.model import build_unet, get_device
 from src.normalization import load_stats
 
@@ -89,11 +89,13 @@ def train_one_epoch(model, loader, optimizer, device) -> float:
 
 
 @torch.no_grad()
-def validate(model, dataset, device) -> tuple:
-    """Evaluate the model on the validation set by tiled prediction.
+def validate(model, dataset, device) -> float:
+    """Mean per-image masked MAE over the validation set.
 
-    Predicts every whole image by tiling and aggregates the masked error over all
-    skin pixels (dataset-level, not per-image mean).
+    Predicts every whole image by tiling and computes its masked MAE with the same
+    function used at test time (src.metrics.masked_mae), then averages over images.
+    This per-image (macro) aggregation matches scripts/evaluate.py, so the
+    validation and test metrics are computed identically.
 
     Parameters
     ----------
@@ -106,20 +108,13 @@ def validate(model, dataset, device) -> tuple:
 
     Returns
     -------
-    tuple of float
-        (MAE, MSE) over skin pixels, in normalised [0, 1] units.
+    float
+        Mean per-image masked MAE over skin pixels, in normalised [0, 1] units.
     """
     model.eval()
-    abs_sum = sq_sum = px_sum = 0.0
-    for i in range(len(dataset)):
-        rgb, ei, mask = dataset[i]
-        pred = tiled_predict(model, rgb, device)
-        m = mask
-        abs_sum += float(((pred - ei).abs() * m).sum())
-        sq_sum += float(((pred - ei).pow(2) * m).sum())
-        px_sum += float(m.sum())
-    px_sum = max(px_sum, 1e-6)
-    return abs_sum / px_sum, sq_sum / px_sum
+    per_image = [masked_mae(tiled_predict(model, rgb, device), ei, mask)
+                 for rgb, ei, mask in (dataset[i] for i in range(len(dataset)))]
+    return float(np.mean(per_image)) if per_image else 0.0
 
 
 def main() -> None:
@@ -160,25 +155,28 @@ def main() -> None:
           f"crops = {len(train_ds)} samples  val_imgs={len(val_rows)}")
 
     best_mae = float("inf")
+    best_epoch = 0
     epochs_no_improve = 0
     history = []
 
     for epoch in range(1, args.epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, device)
-        val_mae, val_mse = validate(model, val_ds, device)
+        val_mae = validate(model, val_ds, device)
         improved = val_mae < best_mae
         if improved:
             best_mae = val_mae
+            best_epoch = epoch
             epochs_no_improve = 0
             torch.save(model.state_dict(), ckpt_path)
         else:
             epochs_no_improve += 1
 
+        # best_mae is recorded only on the epochs that set a new best, so the last
+        # filled row identifies the selected checkpoint.
         history.append({"epoch": epoch, "train_loss": train_loss,
-                        "val_mae": val_mae, "val_mse": val_mse,
-                        "best_mae": best_mae})
-        print(f"epoch {epoch:3d}  train_L1={train_loss:.5f}  "
-              f"val_MAE={val_mae:.5f}  val_MSE={val_mse:.5f}"
+                        "val_mae": val_mae,
+                        "best_mae": val_mae if improved else ""})
+        print(f"epoch {epoch:3d}  train_L1={train_loss:.5f}  val_MAE={val_mae:.5f}"
               f"{'  * best' if improved else ''}")
 
         if epochs_no_improve >= args.patience:
@@ -187,11 +185,12 @@ def main() -> None:
 
     with open(history_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["epoch", "train_loss", "val_mae",
-                                               "val_mse", "best_mae"])
+                                               "best_mae"])
         writer.writeheader()
         writer.writerows(history)
 
-    print(f"\nDone. Best val MAE={best_mae:.5f}  ->  {ckpt_path}\nHistory -> {history_path}")
+    print(f"\nDone. Best val MAE={best_mae:.5f} at epoch {best_epoch}  ->  {ckpt_path}"
+          f"\nHistory -> {history_path}")
 
 
 if __name__ == "__main__":

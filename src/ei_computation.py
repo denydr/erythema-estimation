@@ -103,15 +103,14 @@ def batch_compute_ei_maps(manifest, output_dir: str) -> None:
 def destripe_ei(ei_map: np.ndarray, window: int = config.DESTRIPE_MEDIAN_WINDOW) -> np.ndarray:
     """Remove the push-broom vertical stripe from an EI map.
 
-    Robust column-offset subtraction (notebook 01c): estimate one offset per
+    Robust column-offset subtraction: estimate one offset per
     column from the median down that column (robust to outliers, but
     background-dominated), high-pass it with a median filter to isolate the
     per-column stripe jitter, and subtract it from every row. The stripe is an
     EI-only artifact (log-amplified sensor stripe); the RGB input stays raw.
 
-    A faint value-dependent residual remains on the skin, which no per-column
-    method can fully remove; it is accepted as zero-mean target noise and does
-    not affect the downstream mask (see notebook 01c).
+    A faint value-dependent residual remains on the skin;
+    it is accepted as zero-mean target noise and does not affect the downstream mask.
 
     Parameters
     ----------

@@ -5,7 +5,6 @@ Public API:
     save_stats(stats, path)
     load_stats(path) -> dict
     normalize_ei(ei, stats) -> np.ndarray
-    normalize_rgb(rgb) -> np.ndarray
     preprocess_rgb_imagenet(rgb) -> np.ndarray
 """
 
@@ -113,22 +112,6 @@ def normalize_ei(ei: np.ndarray, stats: dict) -> np.ndarray:
     return np.clip((ei - low) / (high - low), 0.0, 1.0).astype(np.float32)
 
 
-def normalize_rgb(rgb: np.ndarray) -> np.ndarray:
-    """Scale a uint8 [0, 255] RGB image to float32 [0, 1] (display only).
-
-    Parameters
-    ----------
-    rgb : np.ndarray
-        Shape (H, W, 3), uint8.
-
-    Returns
-    -------
-    np.ndarray
-        float32 image in [0, 1], same shape.
-    """
-    return rgb.astype(np.float32) / 255.0
-
-
 # ImageNet channel statistics — the preprocessing a resnet encoder pretrained on
 # ImageNet expects (matches segmentation_models_pytorch's resnet preprocessing_fn).
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -138,8 +121,8 @@ IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 def preprocess_rgb_imagenet(rgb: np.ndarray) -> np.ndarray:
     """ImageNet-standardise a uint8 RGB image for the pretrained encoder.
 
-    Computes (rgb/255 - mean) / std per channel. This is the model input transform;
-    use instead of normalize_rgb when the encoder carries ImageNet weights.
+    Computes (rgb/255 - mean) / std per channel — the model input transform
+    expected by the ImageNet-pretrained encoder.
 
     Parameters
     ----------

@@ -4,7 +4,7 @@ Usage:
     python scripts/extract_dataset.py [--output-dir /path/to/destination]
 
 Fill in HYPERSKIN_PASS and RCLONE_REMOTE in your .env file (see .env.example).
-See README.md Setup section for the full rclone configuration steps.
+See README.md "Usage Instructions" section for the full rclone configuration steps.
 
 Requires:
     pip install -r requirements.txt
