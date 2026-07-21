@@ -5,20 +5,22 @@
 
 ### Project overview
 
-A deep learning pipeline that learns to predict facial erythema index maps from
-standard RGB photos, supervised by ground-truth maps derived from co-registered
-hyperspectral VIS cubes.
+A system for estimating erythema index maps from RGB images, that represents the following pipeline:  
+  
+- **Computation of erythema index maps:** Erythema index (EI) maps are derived using the Dawson Erythema Index (DEI) formula applied to hyperspectral cubes.
+- **Data preprocessing:** The images undergo destriping (of the EI maps), normalization, and masking of the facial region.
+- **Training a model to predict erythema index maps:** a U-Net encoder–decoder architecture performs pixel-wise regression of EI maps from RGB input, supervised by the ground-truth EI maps.
+- **Model Evaluation:** Quantitative metrics MAE, MSE, and SSIM assess the model's feasibility on unseen subjects.
+- **Visualization:** Artifacts are produced showing the ground-truth data alongside the estimated EI maps and an error map.  
+  
+The objective of the project is to assess the feasibility of the produced system for predicting EI maps from RGB input 
+and target EI maps, derived from hyperspectral data.   
 
 ---
 
-### Dataset
+### Dataset Description
 
-The **Hyper-Skin 2023** dataset is the data source used in this project. The RGB-VIS pairs are utilized, spanning 51 subjects across 306 paired hyperspectral cubes and RGB images.
-
-- Splits: train = 44 subjects / 264 images, test = 4 subjects / 24 images, valid = 3 subjects / 18 images.
-- **Split override:** subjects p027, p019, p012 are assigned to `test` regardless of their folder, managed via `manifest.csv` (files are not moved).
-- Raw cubes: ~124 MB each, ~38 GB total.
-
+The **Hyper-Skin 2023** dataset is the data source used in this project:
 ```bibtex
 @inproceedings{ng2023hyperskin,
   title={Hyper-Skin: A Hyperspectral Dataset for Reconstructing Facial Skin-Spectra from {RGB} Images},
@@ -27,98 +29,52 @@ The **Hyper-Skin 2023** dataset is the data source used in this project. The RGB
   year={2023},
   url={https://openreview.net/forum?id=doV2nhGm1l}
 }
-```
-
----
-
-### Data access and EULA
-
-The Hyper-Skin dataset and all derived data (including erythema index maps) is subject to a dataset EULA (End User 
-License Agreement) and **cannot be included in or distributed from this repository**. 
-Only 3 of 51 subjects consented to publication use; the EULA restricts storage to signatories only.
-
-**This repository ships code only — no data of any kind.**
-
-Anyone running this pipeline must independently request access:
-
-> **Access request form:** https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess
-
-After approval you will receive a download link and access password by email. The download is an
-archive (`Hyper-Skin.7z`). Once extracted it contains:
-
-```
-Hyper-Skin(MSI, NIR)/       
+```    
+  
+The utilized data includes RGB-VIS image pairs of participants' faces:    
+- RGB images
+- Hyperpsectral cubes of the visual spectrum, spanning the 400-700 nm range. 
+  
+The dataset includes 51 subjects, resulting in 306 paired hyperspectral cubes and RGB images.      
+The dataset is partitioned into **train, validation, and test splits**.   
+> **Train split**: 44 subjects / 264 RGB-VIS pairs   
+> **Validation split**: 3 subjects / 18 RGB-VIS pairs  
+> **Test split**: 4 subjects / 24 RGB-VIS pairs      
+  
+Each split contains **6 images per subject**, covering:  
+> - **3 views**: front, right, and left     
+> - **2 poses**: neutral and smile   
+  
+The dataset is organized as:  
+```  
 Hyper-Skin(RGB, VIS)/       
     train/
-        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
-        VIS/    p{xxx}_{facial_pose}_{direction}.mat
+        RGB/    p{xxx}_{pose}_{view}.jpg
+        VIS/    p{xxx}_{pose}_{view}.mat
     test/
-        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
-        VIS/    p{xxx}_{facial_pose}_{direction}.mat
+        RGB/    p{xxx}_{pose}_{view}.jpg
+        VIS/    p{xxx}_{pose}_{view}.mat
     valid/
-        RGB/    p{xxx}_{facial_pose}_{direction}.jpg
-        VIS/    p{xxx}_{facial_pose}_{direction}.mat
-```
-
-Filenames follow `p{xxx}_{facial_pose}_{direction}`: `p{xxx}` = subject (e.g. `p012`),
-`{facial_pose}` ∈ {`neutral`, `smile`}, `{direction}` ∈ {`front`, `left`, `right`}. Each RGB
-`.jpg` and its paired VIS `.mat` share the same stem (e.g. `p012_neutral_left`).
-
----
-
-### Repository structure
-
-```
-erythema-estimation/
-├── config.py                         # All paths, constants, hyperparameters
-├── .env                              # Your local DATA_ROOT (gitignored)
-├── .env.example                      # Template — copy to .env and fill in
-├── src/
-│   ├── manifest.py                   # Build/load dataset manifest CSV
-│   ├── io_utils.py                   # Load .mat cubes and .jpg RGB images
-│   ├── ei_computation.py             # Dawson EI formula + destriping + batch computation
-│   ├── masking.py                    # Face-skin mask from RGB (MediaPipe segmenter)
-│   ├── normalization.py              # RGB/EI normalisation + stats save/load
-│   ├── cropping.py                   # Mask-guided random crop helpers (pure NumPy)
-│   ├── dataset.py                    # PyTorch Dataset: RGB→EI patches / full images
-│   ├── model.py                      # U-Net builder (ResNet-34 encoder) + device select
-│   ├── losses.py                     # Masked L1 loss (skin pixels only)
-│   ├── inference.py                  # Tiled full-image prediction
-│   └── metrics.py                    # Masked MAE / MSE / SSIM
-├── scripts/
-│   ├── build_manifest.py             # CLI: generate data/processed/manifest.csv
-│   ├── compute_ei_maps.py            # CLI: batch-compute all raw EI maps
-│   ├── destripe_ei_maps.py           # CLI: batch-destripe EI maps (offline, no SSD)
-│   ├── compute_masks.py              # CLI: batch-compute binary face-skin masks
-│   ├── compute_norm_stats.py         # CLI: EI normalisation stats from train-skin pixels
-│   ├── train.py                      # CLI: train the U-Net (RGB→EI, masked loss)
-│   └── evaluate.py                   # CLI: evaluate on the test split + figures
-├── notebooks/
-│   ├── 01_data_exploration.ipynb     # Sanity-check data before batch run
-│   ├── 01b_stripe_analysis.ipynb     # Characterise the push-broom stripe
-│   ├── 01c_ei_destriping.ipynb       # Validate the destriping method
-│   ├── 01d_destriping_relevance.ipynb # Destriping on the skin region (raw vs destriped)
-│   ├── 02_skin_masking.ipynb         # Select + validate the masking approach
-│   └── 03_normalization.ipynb        # Verify masks + normalised inputs/target
-├── models/
-│   └── selfie_multiclass.tflite      # Segmenter model — auto-downloaded (gitignored)
-├── outputs/                          # Training + evaluation results (gitignored)
-│   ├── best_model.pt                 # Best checkpoint by val MAE — train.py
-│   ├── train_history.csv             # Per-epoch losses/metrics — train.py
-│   ├── test_metrics_*.csv            # Test metric tables — evaluate.py
-│   └── qualitative_test.png          # RGB/GT/pred/error panels — evaluate.py
-└── data/
-    └── processed/
-        ├── manifest.csv              # Generated by build_manifest.py (gitignored)
-        ├── ei_maps/                  # Raw EI maps — compute_ei_maps.py (gitignored)
-        ├── ei_maps_destriped/        # Destriped EI maps — destripe_ei_maps.py (gitignored)
-        ├── masks/                    # Binary face-skin masks — compute_masks.py (gitignored)
-        └── norm_stats.json           # EI norm stats — compute_norm_stats.py (gitignored)
-```
+        RGB/    p{xxx}_{pose}_{view}.jpg
+        VIS/    p{xxx}_{pose}_{view}.mat  
+```  
+-  **p{xxx}**: subject ID, e.g., `p012`   
+-  **{pose}**: pose of the subject in the image, e.g., `neutral`/`smile`  
+-  **{view}**: view of the subject in the image, e.g., `front`/`left`/`right` 
 
 ---
 
-### Stage 1 — Ground-truth EI map computation
+### Dataset access 
+
+The Hyper-Skin dataset and all derived data is subject to an EULA (End User 
+License Agreement) and **cannot be included in or distributed from this repository**.  
+To reproduce this repository, follow the `Usage Instructions` on how to access the dataset and 
+and run the pipeline. 
+
+---  
+### System Pipeline
+
+#### Stage 1: Ground-truth EI map computation
 
 **Scripts:**
 - `scripts/build_manifest.py` — scans the dataset folders and writes the manifest (one row per image: subject, pose, view, split, file paths).
@@ -135,30 +91,28 @@ flowchart LR
     CE --> EIM["ei_maps/*.npy"]
 ```
 
-Dawson erythema index (Abdlaty et al. 2021, Eq. 3; Dawson et al. 1980):
+Dawson erythema index (DEI) formula is applied:
 
 ```
 DEI = 100 × [r + (3/2)(q + s) − 2(p + t)]
 ```
-
+  
 where p, q, r, s, t = log₁₀(1 / R) at 510, 540, 560, 580, 610 nm respectively.
 
-- The five wavelengths map to five bands of the hyperspectral cube (31 bands, 400–700 nm, 10 nm step);
-  reflectance R is read per band and converted to log-reciprocal reflectance (absorbance).
+- The five wavelengths map to five bands of the hyperspectral cube (31 bands, 400–700 nm, 10 nm step).
+- Reflectance R is read per band and converted to log-reciprocal reflectance.
 - Applied independently to every pixel → one 1024×1024 EI map per image.
-- Background pixels come out negative — their spectra don't match the haemoglobin absorption pattern.
 
 ---
 
-### Stage 2 — Data preprocessing
+#### Stage 2: Data preprocessing
 
-Three steps take the raw EI maps and RGB images to model-ready form: the EI target is destriped,
-a face-skin mask is computed per image, and both streams are normalised.
+Data preprocessing is conducted in three steps: EI map destriping, normalization, mask computation.
 
 **Scripts:**
 - `scripts/destripe_ei_maps.py` — batch-destripes the raw EI maps into the model target (offline, no cubes).
 - `scripts/compute_masks.py` — batch-computes the binary face-skin mask for every RGB image.
-- `scripts/compute_norm_stats.py` — computes the EI normalisation percentiles from train-split skin pixels.
+- `scripts/compute_norm_stats.py` — computes the EI normalization percentiles from train-split skin pixels.
 
 ```mermaid
 flowchart LR
@@ -175,63 +129,14 @@ flowchart LR
     MKO --> CN
     NRM["normalization.py"] --> CN
     CN --> NS["norm_stats.json"]
-```
-
-#### 2.1 Destriping (EI target)
-
-- **Problem:** the log-reciprocal transform amplifies the sensor's push-broom stripe into a visible
-  per-column artifact in the EI maps. The RGB images are unaffected and stay raw.
-- **Method:** robust column-offset subtraction (`destripe_ei`) — one offset per column, taken from
-  the column median and high-passed with a 100-px median filter, subtracted row-wise. The offset is
-  estimated from the whole image (the featureless background is the clean place to read the pure
-  stripe); fitting it to skin only would absorb facial structure into the offset and corrupt the target.
-- **Result:** ~84% of the whole-image streaking removed (`01c`), and — the decisive check — the removed
-  component is *stripe, not anatomy* (`01d`): destriping does not corrupt the erythema signal. A faint,
-  value-dependent residual remains on skin (mildest there, since the stripe is weakest on skin); it is
-  zero-mean target noise and does not affect the mask (validated in `01b`/`01c`/`01d`).
-- Runs offline from `ei_maps/` (no cubes needed) and writes `ei_maps_destriped/` separately —
-  the raw maps are kept for a raw-vs-destriped ablation. The destriped maps are the model target.
-
-#### 2.2 Face-skin masking
-
-- **Why:** the model is trained and evaluated on facial skin only, so every image needs a region mask.
-- **Method:** from the **RGB image alone** — MediaPipe's multiclass selfie segmenter
-  (`selfie_multiclass_256x256`, pinned version, auto-downloaded to `models/`), keeping the
-  **face-skin class** only. Hair and background are excluded per-pixel by class; no threshold,
-  morphology, or landmarks.
-- **Why not EI:** no 1-D EI threshold separates skin from the dark booth background — the log
-  transform pushes background values into the skin range (verified in `02_skin_masking.ipynb`).
-- **Result:** one binary uint8 {0,1} mask per image in `masks/`. Validated 306/306: ~26% mean skin
-  coverage, no empty, collapsed, or runaway masks across all three views.
-- Masks are stored **binary and applied downstream** (masked loss, metrics, visualisation) —
-  never pre-baked into the EI maps or RGB.
-
-#### 2.3 Normalisation
-
-Normalisation is applied on the fly by the data loader (`src/normalization.py`):
-
-- **RGB input:** ImageNet standardisation — `(rgb/255 − mean) / std` per channel
-  (`preprocess_rgb_imagenet`), matching the ImageNet-pretrained ResNet-34 encoder.
-- **EI target:** robust percentile-based min-max to [0, 1] — `(ei − p1) / (p99 − p1)`, clipped to [0, 1].
-- The percentiles are computed **once, from train-split skin pixels only** (destriped EI where
-  mask == 1) and saved to `norm_stats.json`; the same saved statistics are applied to every split
-  at load time — no test-set leakage.
-- **Why skin-only + percentiles:** background EI extremes are corrupted and would stretch the scale;
-  the p1/p99 cut keeps the log(1/R) outlier tails from defining it. Cost: ~1% of skin pixels clipped
-  per side on all splits (verified in `03_normalization.ipynb`).
-- Nothing normalised is written to disk — artifacts stay in real EI units, the two saved numbers are
-  applied on the fly by the data loader, and predictions remain invertible to real EI.
-
-**Model contract (Stage 3):** input = ImageNet-standardised RGB (full frame, unmasked) → U-Net →
-normalised destriped EI map; the loss and all metrics are computed on `mask == 1` pixels only,
-consistently in training and evaluation.
-
+```  
 ---
 
-### Stage 3 — Model training
+#### Stage 3 — Model training
 
 **Scripts:**
-- `scripts/train.py` — trains the U-Net (RGB→EI), validates on whole images by tiling, and saves the best checkpoint + per-epoch history.
+- `scripts/train.py` — trains the U-Net on RGB input and EI maps target. Runs validation and minimizes the loss function.
+Saves the best model weights and per-epoch loss and validation MAE metrics. 
 
 ```mermaid
 flowchart LR
@@ -250,23 +155,21 @@ flowchart LR
 
 - **Model:** U-Net with a ResNet-34 encoder pretrained on ImageNet (via `segmentation_models_pytorch`),
   single-channel sigmoid output in [0, 1]. Built by `src/model.py`.
-- **Input/target:** ImageNet-standardised RGB in, normalised destriped EI out; **masked L1 loss** on
+- **Input/target:** ImageNet-standardised RGB in, normalised destriped EI out. Applying **masked L1 loss** on
   skin pixels only.
-- **Training patches:** full 1024×1024 maps do not fit in memory, so each sample is a **mask-guided
-  random 256×256 crop** (≥10% skin, resampled up to 20×, centroid fallback) plus a random horizontal
-  flip — the same crop applied to RGB, EI, and mask together.
+- **Training patches:** for memory constraints, each sample is a **mask-guided
+  random 256×256 crop** with applied geometric augmentation (random horizontal flip).
 - **Validation:** each epoch predicts whole 1024×1024 images by **tiling** (`src/inference.py`) and
-  scores **per-image masked MAE** (the same metric and aggregation used at evaluation); the best
-  checkpoint (lowest val MAE) is kept, with early stopping.
-- **Device:** CUDA → MPS → CPU, chosen automatically (`get_device`).
+  scores **per-image masked MAE** (the same metric and aggregation used at evaluation). The best model with lowest
+  validation MAE is kept, with early stopping.
 - **Outputs:** `outputs/best_model.pt`, `outputs/train_history.csv`.
 
 ---
 
-### Stage 4 — Evaluation
+#### Stage 4: Evaluation
 
 **Scripts:**
-- `scripts/evaluate.py` — loads the best checkpoint, predicts the test split by tiling, and writes masked MAE/MSE/SSIM tables + the qualitative figure.
+- `scripts/evaluate.py` — loads the best model weights, predicts the test split by tiling, and writes masked MAE/MSE/SSIM tables + the qualitative figure.
 
 ```mermaid
 flowchart LR
@@ -283,11 +186,9 @@ flowchart LR
 ```
 
 - **Metrics** are computed over **skin pixels only** (mask==1), per image, then reported as mean ± std,
-  stratified by view and pose. MAE/MSE in both EI units and normalised [0, 1]; SSIM is unitless.
-- **Tables:** `test_target_ei_stats.csv` (target EI range on skin, for interpreting the errors),
-  `test_metrics_per_subject.csv`, `test_metrics_per_view&pose.csv`, `test_metrics_aggregate.csv`.
-- **Figure:** `qualitative_test.png` — RGB / ground-truth EI / prediction / error panels for the
-  display-permitted subjects.
+  stratified by view and pose. 
+- **Tables:** `test_metrics_per_subject.csv`, `test_metrics_per_view&pose.csv`, `test_metrics_aggregate.csv`.
+- **Figure:** `qualitative_test.png` — RGB / Ground-truth EI / Predicted EI / Error map panels for permitted subjects.
 
 ---
 
@@ -295,14 +196,16 @@ flowchart LR
 
 **1. Request dataset access** at https://hyperskinsiteapp--hyperskinwebapp.asia-east1.hosted.app/dataAccess. After approval you will receive a password by email and `Hyper-Skin.7z` will be shared with your Google account on Google Drive.
 
-**2. Install dependencies**
+**2. Install dependencies** (requires Python 3.12)
 ```bash
 pip install -r requirements.txt
 brew install p7zip      # macOS — provides the 7z extraction tool
 brew install rclone     # macOS — used to download the dataset from Google Drive
 ```
 
-**3. Set up rclone Google Drive remote (one-time)**
+> The `brew` commands are macOS-only. On Linux, install the same tools with your package manager (e.g. `apt install p7zip-full rclone`).
+
+**3. Set up rclone Google Drive remote**
 
 rclone authenticates with your Google account to download the dataset. Run the interactive setup:
 ```bash
@@ -328,7 +231,7 @@ At the prompts, follow the steps:
 | Keep remote             | `y` |
 | Quit                    | `q` |
 
-**4. Configure your environment**
+**4. Configure the environment**
 ```bash
 cp .env.example .env
 ```
@@ -346,11 +249,12 @@ Open `.env` and fill in the values:
 caffeinate -di python scripts/extract_dataset.py --output-dir /path/to/destination
 ```
 
-> **Important:** The archive is ~100 GB and takes longer to download. It cannot be resumed if interrupted. Leave the machine plugged in overnight — `caffeinate -di` prevents macOS from sleeping. On Windows, disable sleep in Power Settings before running.
+> **On macOS:** caffeinate -di prevents from sleeping during the download  
+> **On Windows:** disable sleep in Power Settings beforehand  
+  
+Once complete, the script prints the correct DATA_ROOT value, which is copied into .env.
 
-Once complete, the script prints the correct `DATA_ROOT` value — copy it into `.env`.
-
-**What the script produces:**
+**The script produces:**
 
 ```
 Google Drive                       local disk (/path/to/destination)
@@ -392,19 +296,18 @@ python scripts/train.py
 python scripts/evaluate.py
 ```
 
-Steps 1–5 (data preprocessing) are CPU-only; steps 6–7 use PyTorch and the GPU if available
-(CUDA/MPS). Every artifact under `data/processed/`, `models/`, and `outputs/` is gitignored (see
-*Data access and EULA*) and fully regenerated by these steps; each script checks its prerequisites
-and says what to run first if something is missing.
-
-**7. Notebooks (Optional)** — each pipeline step has an accompanying notebook with the analysis
-behind it and verification of its outputs:
-
+**7. Notebooks (Optional)**  
+Jupyter notebooks exist for exploratory analysis and documentation of results, 
+divided in `notebooks/exploration` and `notebooks/results`.  
+Jupyter notebooks browser is opened for accessing the notebooks by running the following command in the IDE terminal:    
 ```bash
 jupyter notebook
 ```
 
+
 Notebooks are committed without outputs; run them top-to-bottom to regenerate the figures.
 
-`Disclaimer:` This software implementation is executed using Claude Code. 
+`Disclaimer:`  
+  
+> This software implementation is executed using Claude Code. 
 Design decisions are independently made with own research and reasoning, and realized through multiple coding iterations.
