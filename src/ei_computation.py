@@ -19,10 +19,6 @@ from src.io_utils import load_cube, band_index_for_wavelength
 def compute_ei_map(cube: np.ndarray, wavelengths: list) -> np.ndarray:
     """Compute a 2D Dawson erythema index map from a hyperspectral cube.
 
-    Formula (Abdlaty et al. 2021, Eq. 3 — citing Dawson et al. 1980):
-        DEI = 100 × [r + (3/2)(q + s) − 2(p + t)]
-    where p, q, r, s, t = log10(1 / R) at 510, 540, 560, 580, 610 nm.
-
     Parameters
     ----------
     cube : np.ndarray
@@ -101,16 +97,7 @@ def batch_compute_ei_maps(manifest, output_dir: str) -> None:
 
 
 def destripe_ei(ei_map: np.ndarray, window: int = config.DESTRIPE_MEDIAN_WINDOW) -> np.ndarray:
-    """Remove the push-broom vertical stripe from an EI map.
-
-    Robust column-offset subtraction: estimate one offset per
-    column from the median down that column (robust to outliers, but
-    background-dominated), high-pass it with a median filter to isolate the
-    per-column stripe jitter, and subtract it from every row. The stripe is an
-    EI-only artifact (log-amplified sensor stripe); the RGB input stays raw.
-
-    A faint value-dependent residual remains on the skin;
-    it is accepted as zero-mean target noise and does not affect the downstream mask.
+    """Remove the pushbroom vertical stripe from an EI map.
 
     Parameters
     ----------

@@ -17,7 +17,7 @@ _SEGMENTER = None
 
 
 def _get_segmenter():
-    """Lazily create the MediaPipe segmenter, downloading the model if absent."""
+    """Create the MediaPipe segmenter, downloading the model if absent."""
     global _SEGMENTER
     if _SEGMENTER is None:
         from mediapipe.tasks.python import BaseOptions, vision

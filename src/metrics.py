@@ -53,10 +53,6 @@ def masked_mse(pred: torch.Tensor, target: torch.Tensor,
 def masked_ssim(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> float:
     """Structural similarity averaged over skin pixels.
 
-    Computes the per-pixel SSIM map over the whole image (SSIM needs local windows),
-    then averages it over the skin region only — measuring whether the predicted map
-    has the right spatial structure, not just the right level.
-
     Parameters
     ----------
     pred, target : np.ndarray
